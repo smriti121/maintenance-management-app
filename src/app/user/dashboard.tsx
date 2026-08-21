@@ -170,79 +170,71 @@ export default function UserDashboard() {
           }
           ListHeaderComponent={
             <View style={styles.dashboardHeader}>
-              {/* Symmetrical 2x2 Metric Grid */}
+              {/* Symmetrical 4-Column Metric Grid */}
               <View style={styles.metricsContainer}>
-                {/* Row 1: Total & In Progress */}
-                <View style={styles.metricPairRow}>
-                  <View style={[styles.metricCard, styles.metricCardTotal]}>
-                    <View style={styles.metricIconWrap}>
-                      <Ionicons name="documents-outline" size={20} color={ExecutiveTheme.colors.brandPrimary} />
-                    </View>
-                    <View style={styles.metricTextWrap}>
-                      <Text style={styles.metricNumber}>{requests.length}</Text>
-                      <Text style={styles.metricLabel}>TOTAL</Text>
-                    </View>
+                <View style={[styles.metricCard, styles.metricCardTotal]}>
+                  <View style={styles.metricIconWrap}>
+                    <Ionicons name="documents-outline" size={18} color={ExecutiveTheme.colors.brandPrimary} />
                   </View>
-
-                  <View style={[styles.metricCard, styles.metricCardProgress]}>
-                    <View style={[styles.metricIconWrap, { backgroundColor: '#EDE9FE' }]}>
-                      <Ionicons name="time-outline" size={20} color="#7C3AED" />
-                    </View>
-                    <View style={styles.metricTextWrap}>
-                      <Text style={[styles.metricNumber, { color: '#7C3AED' }]}>{inProgressCount}</Text>
-                      <Text style={[styles.metricLabel, { color: '#7C3AED' }]}>IN PROGRESS</Text>
-                    </View>
+                  <View style={styles.metricTextWrap}>
+                    <Text style={styles.metricNumber}>{requests.length}</Text>
+                    <Text style={styles.metricLabel}>TOTAL</Text>
                   </View>
                 </View>
 
-                {/* Row 2: Pending & Resolved */}
-                <View style={styles.metricPairRow}>
-                  <View style={[styles.metricCard, styles.metricCardPending]}>
-                    <View style={[styles.metricIconWrap, { backgroundColor: '#F4F2FA' }]}>
-                      <Ionicons name="hourglass-outline" size={20} color="#6B6888" />
-                    </View>
-                    <View style={styles.metricTextWrap}>
-                      <Text style={styles.metricNumber}>{pendingCount}</Text>
-                      <Text style={styles.metricLabel}>PENDING</Text>
-                    </View>
+                <View style={[styles.metricCard, styles.metricCardProgress]}>
+                  <View style={[styles.metricIconWrap, { backgroundColor: '#EFF6FF' }]}>
+                    <Ionicons name="time-outline" size={18} color="#2563EB" />
                   </View>
+                  <View style={styles.metricTextWrap}>
+                    <Text style={[styles.metricNumber, { color: '#2563EB' }]}>{inProgressCount}</Text>
+                    <Text style={[styles.metricLabel, { color: '#2563EB' }]}>IN PROGRESS</Text>
+                  </View>
+                </View>
 
-                  <View style={[styles.metricCard, styles.metricCardSuccess]}>
-                    <View style={[styles.metricIconWrap, { backgroundColor: '#DCFCE7' }]}>
-                      <Ionicons name="checkmark-circle-outline" size={20} color="#15803D" />
-                    </View>
-                    <View style={styles.metricTextWrap}>
-                      <Text style={[styles.metricNumber, { color: '#15803D' }]}>{completedCount}</Text>
-                      <Text style={[styles.metricLabel, { color: '#15803D' }]}>RESOLVED</Text>
-                    </View>
+                <View style={[styles.metricCard, styles.metricCardPending]}>
+                  <View style={[styles.metricIconWrap, { backgroundColor: '#FFFBEB' }]}>
+                    <Ionicons name="hourglass-outline" size={18} color="#D97706" />
+                  </View>
+                  <View style={styles.metricTextWrap}>
+                    <Text style={[styles.metricNumber, { color: '#D97706' }]}>{pendingCount}</Text>
+                    <Text style={[styles.metricLabel, { color: '#D97706' }]}>PENDING</Text>
+                  </View>
+                </View>
+
+                <View style={[styles.metricCard, styles.metricCardSuccess]}>
+                  <View style={[styles.metricIconWrap, { backgroundColor: '#ECFDF5' }]}>
+                    <Ionicons name="checkmark-circle-outline" size={18} color="#059669" />
+                  </View>
+                  <View style={styles.metricTextWrap}>
+                    <Text style={[styles.metricNumber, { color: '#059669' }]}>{completedCount}</Text>
+                    <Text style={[styles.metricLabel, { color: '#059669' }]}>RESOLVED</Text>
                   </View>
                 </View>
               </View>
 
-              {/* Quick Presets Section */}
+              {/* Quick Preset Shortcuts */}
               <View style={styles.sectionHeaderWrap}>
-                <Text style={styles.sectionTitle}>QUICK MAINTENANCE PRESETS</Text>
-                <Text style={styles.sectionSub}>1-Tap to report common apartment issues</Text>
+                <Text style={styles.sectionTitle}>QUICK SERVICE PRESETS</Text>
               </View>
-
               <ScrollView
                 horizontal
                 showsHorizontalScrollIndicator={false}
                 contentContainerStyle={styles.shortcutsScrollContent}
               >
-                {quickShortcuts.map((item, idx) => (
+                {quickShortcuts.map((preset, index) => (
                   <Pressable
-                    key={idx}
+                    key={index}
                     style={({ pressed }) => [styles.shortcutChip, pressed && styles.pressed]}
                     onPress={() =>
                       router.push({
                         pathname: '/user/create-request',
-                        params: { initialTitle: item.title },
+                        params: { initialTitle: preset.title },
                       })
                     }
                   >
-                    <Ionicons name={item.icon} size={15} color={ExecutiveTheme.colors.brandPrimary} />
-                    <Text style={styles.shortcutText}>{item.label}</Text>
+                    <Ionicons name={preset.icon} size={15} color={ExecutiveTheme.colors.brandPrimary} />
+                    <Text style={styles.shortcutText}>{preset.label}</Text>
                   </Pressable>
                 ))}
               </ScrollView>
@@ -477,14 +469,10 @@ const styles = StyleSheet.create({
   dashboardHeader: {
     paddingTop: 14,
   },
-  // 2x2 Symmetrical Metric Grid
   metricsContainer: {
-    gap: 10,
-    marginBottom: 16,
-  },
-  metricPairRow: {
     flexDirection: 'row',
     gap: 10,
+    marginBottom: 16,
   },
   metricCard: {
     flex: 1,
@@ -496,28 +484,28 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 10,
-    minHeight: 70,
+    minHeight: 66,
     ...ExecutiveTheme.shadows.soft,
   },
   metricCardTotal: {
     backgroundColor: '#FFFFFF',
   },
   metricCardProgress: {
-    backgroundColor: ExecutiveTheme.colors.brandLightMuted,
-    borderColor: ExecutiveTheme.colors.accentGoldBorder,
+    backgroundColor: '#EFF6FF',
+    borderColor: '#BFDBFE',
   },
   metricCardPending: {
-    backgroundColor: ExecutiveTheme.colors.backgroundSubtle,
-    borderColor: ExecutiveTheme.colors.border,
+    backgroundColor: '#FFFBEB',
+    borderColor: '#FDE68A',
   },
   metricCardSuccess: {
-    backgroundColor: '#F0FDF4',
-    borderColor: '#BBF7D0',
+    backgroundColor: '#ECFDF5',
+    borderColor: '#A7F3D0',
   },
   metricIconWrap: {
-    width: 38,
-    height: 38,
-    borderRadius: 11,
+    width: 36,
+    height: 36,
+    borderRadius: 10,
     backgroundColor: ExecutiveTheme.colors.brandLight,
     alignItems: 'center',
     justifyContent: 'center',
@@ -527,13 +515,13 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   metricNumber: {
-    fontSize: 20,
+    fontSize: 18,
     fontWeight: '800',
     color: ExecutiveTheme.colors.textPrimary,
-    lineHeight: 23,
+    lineHeight: 22,
   },
   metricLabel: {
-    fontSize: 9.5,
+    fontSize: 9,
     fontWeight: '800',
     color: ExecutiveTheme.colors.textSecondary,
     letterSpacing: 0.4,
@@ -586,6 +574,7 @@ const styles = StyleSheet.create({
     padding: 3,
     borderWidth: 1,
     borderColor: ExecutiveTheme.colors.border,
+    maxWidth: 520,
   },
   segmentTab: {
     flex: 1,

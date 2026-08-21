@@ -141,6 +141,24 @@ export default function StaffDashboard() {
               </Text>
             </View>
           </View>
+
+          {/* Right Header: Active Duty Pill & Refresh */}
+          <View style={styles.headerRightGroup}>
+            <View style={styles.statusPill}>
+              <View style={styles.statusDot} />
+              <Text style={styles.statusPillText}>On Duty</Text>
+            </View>
+            <Pressable
+              style={({ pressed }) => [styles.refreshIconBtn, pressed && styles.pressed]}
+              onPress={() => {
+                setRefreshing(true);
+                loadData();
+              }}
+              hitSlop={8}
+            >
+              <Ionicons name="refresh-outline" size={17} color={ExecutiveTheme.colors.textSecondary} />
+            </Pressable>
+          </View>
         </View>
       </View>
 
@@ -163,51 +181,45 @@ export default function StaffDashboard() {
           }
           ListHeaderComponent={
             <View style={styles.dashboardHeader}>
-              {/* Symmetrical 2x2 Workload Grid */}
+              {/* Symmetrical 4-Column Balanced Metric Grid */}
               <View style={styles.metricsContainer}>
-                {/* Row 1: Assigned & In Progress */}
-                <View style={styles.metricPairRow}>
-                  <View style={[styles.metricCard, styles.metricCardAssigned]}>
-                    <View style={styles.metricIconWrap}>
-                      <Ionicons name="file-tray-full-outline" size={20} color={ExecutiveTheme.colors.brandPrimary} />
-                    </View>
-                    <View style={styles.metricTextWrap}>
-                      <Text style={styles.metricNumber}>{assignedCount}</Text>
-                      <Text style={styles.metricLabel}>ASSIGNED</Text>
-                    </View>
+                <View style={[styles.metricCard, styles.metricCardAssigned]}>
+                  <View style={styles.metricIconWrap}>
+                    <Ionicons name="file-tray-full-outline" size={18} color={ExecutiveTheme.colors.brandPrimary} />
                   </View>
-
-                  <View style={[styles.metricCard, styles.metricCardProgress]}>
-                    <View style={[styles.metricIconWrap, { backgroundColor: '#EDE9FE' }]}>
-                      <Ionicons name="construct-outline" size={20} color="#7C3AED" />
-                    </View>
-                    <View style={styles.metricTextWrap}>
-                      <Text style={[styles.metricNumber, { color: '#7C3AED' }]}>{inProgressCount}</Text>
-                      <Text style={[styles.metricLabel, { color: '#7C3AED' }]}>IN PROGRESS</Text>
-                    </View>
+                  <View style={styles.metricTextWrap}>
+                    <Text style={styles.metricNumber}>{assignedCount}</Text>
+                    <Text style={styles.metricLabel}>ASSIGNED</Text>
                   </View>
                 </View>
 
-                {/* Row 2: On Hold & Resolved */}
-                <View style={styles.metricPairRow}>
-                  <View style={[styles.metricCard, styles.metricCardHold]}>
-                    <View style={[styles.metricIconWrap, { backgroundColor: '#FFEDD5' }]}>
-                      <Ionicons name="pause-circle-outline" size={20} color="#C2410C" />
-                    </View>
-                    <View style={styles.metricTextWrap}>
-                      <Text style={[styles.metricNumber, { color: '#C2410C' }]}>{onHoldCount}</Text>
-                      <Text style={[styles.metricLabel, { color: '#C2410C' }]}>ON HOLD</Text>
-                    </View>
+                <View style={[styles.metricCard, styles.metricCardProgress]}>
+                  <View style={[styles.metricIconWrap, { backgroundColor: '#EFF6FF' }]}>
+                    <Ionicons name="construct-outline" size={18} color="#2563EB" />
                   </View>
+                  <View style={styles.metricTextWrap}>
+                    <Text style={[styles.metricNumber, { color: '#2563EB' }]}>{inProgressCount}</Text>
+                    <Text style={[styles.metricLabel, { color: '#2563EB' }]}>IN PROGRESS</Text>
+                  </View>
+                </View>
 
-                  <View style={[styles.metricCard, styles.metricCardSuccess]}>
-                    <View style={[styles.metricIconWrap, { backgroundColor: '#DCFCE7' }]}>
-                      <Ionicons name="checkmark-circle-outline" size={20} color="#15803D" />
-                    </View>
-                    <View style={styles.metricTextWrap}>
-                      <Text style={[styles.metricNumber, { color: '#15803D' }]}>{completedCount}</Text>
-                      <Text style={[styles.metricLabel, { color: '#15803D' }]}>RESOLVED</Text>
-                    </View>
+                <View style={[styles.metricCard, styles.metricCardHold]}>
+                  <View style={[styles.metricIconWrap, { backgroundColor: '#FFFBEB' }]}>
+                    <Ionicons name="pause-circle-outline" size={18} color="#D97706" />
+                  </View>
+                  <View style={styles.metricTextWrap}>
+                    <Text style={[styles.metricNumber, { color: '#D97706' }]}>{onHoldCount}</Text>
+                    <Text style={[styles.metricLabel, { color: '#D97706' }]}>ON HOLD</Text>
+                  </View>
+                </View>
+
+                <View style={[styles.metricCard, styles.metricCardSuccess]}>
+                  <View style={[styles.metricIconWrap, { backgroundColor: '#ECFDF5' }]}>
+                    <Ionicons name="checkmark-circle-outline" size={18} color="#059669" />
+                  </View>
+                  <View style={styles.metricTextWrap}>
+                    <Text style={[styles.metricNumber, { color: '#059669' }]}>{completedCount}</Text>
+                    <Text style={[styles.metricLabel, { color: '#059669' }]}>RESOLVED</Text>
                   </View>
                 </View>
               </View>
@@ -215,7 +227,7 @@ export default function StaffDashboard() {
               {/* Urgent Priority Alert Banner */}
               {urgentTasks.length > 0 && (
                 <View style={styles.urgentBanner}>
-                  <Ionicons name="alert-circle" size={22} color="#DC2626" />
+                  <Ionicons name="alert-circle" size={20} color="#E11D48" />
                   <View style={styles.urgentTextGroup}>
                     <Text style={styles.urgentTitle}>Priority Dispatch Alert</Text>
                     <Text style={styles.urgentSubtitle}>
@@ -421,6 +433,46 @@ const styles = StyleSheet.create({
     fontWeight: '500',
     marginTop: 1,
   },
+  headerRightGroup: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  statusPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: '#ECFDF5',
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: '#A7F3D0',
+  },
+  statusDot: {
+    width: 7,
+    height: 7,
+    borderRadius: 3.5,
+    backgroundColor: '#10B981',
+  },
+  statusPillText: {
+    fontSize: 11.5,
+    fontWeight: '700',
+    color: '#047857',
+  },
+  refreshIconBtn: {
+    width: 32,
+    height: 32,
+    borderRadius: 9,
+    backgroundColor: ExecutiveTheme.colors.backgroundSubtle,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: ExecutiveTheme.colors.border,
+  },
+  pressed: {
+    opacity: 0.75,
+  },
   mainFeedWrapper: {
     flex: 1,
     width: '100%',
@@ -430,12 +482,9 @@ const styles = StyleSheet.create({
     paddingTop: 14,
   },
   metricsContainer: {
-    gap: 10,
-    marginBottom: 14,
-  },
-  metricPairRow: {
     flexDirection: 'row',
     gap: 10,
+    marginBottom: 14,
   },
   metricCard: {
     flex: 1,
@@ -447,28 +496,28 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 10,
-    minHeight: 70,
+    minHeight: 66,
     ...ExecutiveTheme.shadows.soft,
   },
   metricCardAssigned: {
     backgroundColor: '#FFFFFF',
   },
   metricCardProgress: {
-    backgroundColor: ExecutiveTheme.colors.brandLightMuted,
-    borderColor: ExecutiveTheme.colors.accentGoldBorder,
+    backgroundColor: '#EFF6FF',
+    borderColor: '#BFDBFE',
   },
   metricCardHold: {
-    backgroundColor: '#FFF7ED',
-    borderColor: '#FFEDD5',
+    backgroundColor: '#FFFBEB',
+    borderColor: '#FDE68A',
   },
   metricCardSuccess: {
-    backgroundColor: '#F0FDF4',
-    borderColor: '#BBF7D0',
+    backgroundColor: '#ECFDF5',
+    borderColor: '#A7F3D0',
   },
   metricIconWrap: {
-    width: 38,
-    height: 38,
-    borderRadius: 11,
+    width: 36,
+    height: 36,
+    borderRadius: 10,
     backgroundColor: ExecutiveTheme.colors.brandLight,
     alignItems: 'center',
     justifyContent: 'center',
@@ -478,13 +527,13 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   metricNumber: {
-    fontSize: 20,
+    fontSize: 18,
     fontWeight: '800',
     color: ExecutiveTheme.colors.textPrimary,
-    lineHeight: 23,
+    lineHeight: 22,
   },
   metricLabel: {
-    fontSize: 9.5,
+    fontSize: 9,
     fontWeight: '800',
     color: ExecutiveTheme.colors.textSecondary,
     letterSpacing: 0.4,
@@ -494,9 +543,9 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 10,
-    backgroundColor: '#FEF2F2',
+    backgroundColor: '#FFF1F2',
     borderWidth: 1,
-    borderColor: '#FECACA',
+    borderColor: '#FECDD3',
     borderRadius: 12,
     padding: 12,
     marginBottom: 12,
@@ -507,11 +556,11 @@ const styles = StyleSheet.create({
   urgentTitle: {
     fontSize: 13,
     fontWeight: '800',
-    color: '#991B1B',
+    color: '#9F1239',
   },
   urgentSubtitle: {
     fontSize: 11.5,
-    color: '#7F1D1D',
+    color: '#881337',
     marginTop: 1,
   },
   filterSection: {
@@ -524,6 +573,7 @@ const styles = StyleSheet.create({
     padding: 3,
     borderWidth: 1,
     borderColor: ExecutiveTheme.colors.border,
+    maxWidth: 520,
   },
   segmentTab: {
     flex: 1,

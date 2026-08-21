@@ -146,6 +146,23 @@ export default function StaffWorkQueueScreen() {
               </Text>
             </View>
           </View>
+
+          <View style={styles.headerRightGroup}>
+            <View style={styles.statusPill}>
+              <View style={styles.statusDot} />
+              <Text style={styles.statusPillText}>Live Queue</Text>
+            </View>
+            <Pressable
+              style={({ pressed }) => [styles.refreshIconBtn, pressed && styles.pressed]}
+              onPress={() => {
+                setRefreshing(true);
+                loadData();
+              }}
+              hitSlop={8}
+            >
+              <Ionicons name="refresh-outline" size={17} color={ExecutiveTheme.colors.textSecondary} />
+            </Pressable>
+          </View>
         </View>
       </View>
 
@@ -371,6 +388,46 @@ const styles = StyleSheet.create({
     color: ExecutiveTheme.colors.textSecondary,
     fontWeight: '500',
     marginTop: 1,
+  },
+  headerRightGroup: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  statusPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: '#EFF6FF',
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: '#BFDBFE',
+  },
+  statusDot: {
+    width: 7,
+    height: 7,
+    borderRadius: 3.5,
+    backgroundColor: '#2563EB',
+  },
+  statusPillText: {
+    fontSize: 11.5,
+    fontWeight: '700',
+    color: '#1D4ED8',
+  },
+  refreshIconBtn: {
+    width: 32,
+    height: 32,
+    borderRadius: 9,
+    backgroundColor: ExecutiveTheme.colors.backgroundSubtle,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: ExecutiveTheme.colors.border,
+  },
+  pressed: {
+    opacity: 0.75,
   },
   mainFeedWrapper: {
     flex: 1,

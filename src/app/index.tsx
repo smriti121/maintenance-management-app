@@ -14,6 +14,7 @@ import {
   View,
 } from 'react-native';
 
+import { BrandLogo } from '@/components/brand-logo';
 import { ExecutiveTheme } from '@/constants/theme';
 import { supabase } from '@/lib/supabase';
 import { UserRole } from '@/types/maintenance';
@@ -249,13 +250,10 @@ export default function AuthScreen() {
         showsVerticalScrollIndicator={false}
       >
         <View style={styles.container}>
-          {/* Logo & Header — Luxury Gradient Emblem */}
-          <View style={styles.logoCircle}>
-            <Ionicons name="sparkles" size={28} color="#FFFFFF" />
+          {/* Logo & Header — Luxury Professional Emblem */}
+          <View style={styles.logoWrapper}>
+            <BrandLogo size="large" />
           </View>
-
-          <Text style={styles.appTitle}>FixFlow</Text>
-          <Text style={styles.appSubtitle}>Smart Maintenance Management</Text>
 
           {/* Segmented Control Tab Switcher with Vector Icons */}
           <View style={styles.segmentedControl}>
@@ -433,31 +431,9 @@ const styles = StyleSheet.create({
     maxWidth: 440,
     alignSelf: 'center',
   },
-  logoCircle: {
-    width: 66,
-    height: 66,
-    borderRadius: 20,
-    backgroundColor: ExecutiveTheme.colors.brandPrimary,
+  logoWrapper: {
     alignItems: 'center',
-    justifyContent: 'center',
-    alignSelf: 'center',
-    marginBottom: 12,
-    ...ExecutiveTheme.shadows.card,
-  },
-  appTitle: {
-    fontSize: 26,
-    fontWeight: '800',
-    color: ExecutiveTheme.colors.textPrimary,
-    textAlign: 'center',
-    letterSpacing: -0.5,
-  },
-  appSubtitle: {
-    fontSize: 13,
-    color: ExecutiveTheme.colors.textSecondary,
-    textAlign: 'center',
-    marginTop: 3,
-    marginBottom: 20,
-    fontWeight: '500',
+    marginBottom: 24,
   },
   segmentedControl: {
     flexDirection: 'row',
