@@ -97,10 +97,11 @@ const styles = StyleSheet.create({
     backgroundColor: ExecutiveTheme.colors.surface,
     borderBottomWidth: 1,
     borderBottomColor: ExecutiveTheme.colors.border,
-    paddingTop: Platform.OS === 'ios' ? 8 : 10,
-    paddingBottom: 10,
+    paddingTop: Platform.OS === 'ios' ? 8 : 8,
+    paddingBottom: 8,
     paddingHorizontal: 16,
     zIndex: 10,
+    elevation: 2,
   },
   innerRow: {
     flexDirection: 'row',
@@ -109,12 +110,13 @@ const styles = StyleSheet.create({
     maxWidth: ExecutiveTheme.MaxContentWidth,
     alignSelf: 'center',
     width: '100%',
+    minHeight: 44,
   },
   backBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     width: 76,
-    height: 38,
+    minHeight: 44,
     gap: 4,
   },
   backIconCircle: {

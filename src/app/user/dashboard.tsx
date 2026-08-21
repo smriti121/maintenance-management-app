@@ -170,45 +170,49 @@ export default function UserDashboard() {
           }
           ListHeaderComponent={
             <View style={styles.dashboardHeader}>
-              {/* Symmetrical 4-Column Metric Grid */}
+              {/* Symmetrical 2x2 Mobile Metric Grid */}
               <View style={styles.metricsContainer}>
-                <View style={[styles.metricCard, styles.metricCardTotal]}>
-                  <View style={styles.metricIconWrap}>
-                    <Ionicons name="documents-outline" size={18} color={ExecutiveTheme.colors.brandPrimary} />
+                <View style={styles.metricPairRow}>
+                  <View style={[styles.metricCard, styles.metricCardTotal]}>
+                    <View style={styles.metricIconWrap}>
+                      <Ionicons name="documents-outline" size={18} color={ExecutiveTheme.colors.brandPrimary} />
+                    </View>
+                    <View style={styles.metricTextWrap}>
+                      <Text style={styles.metricNumber}>{requests.length}</Text>
+                      <Text style={styles.metricLabel}>TOTAL</Text>
+                    </View>
                   </View>
-                  <View style={styles.metricTextWrap}>
-                    <Text style={styles.metricNumber}>{requests.length}</Text>
-                    <Text style={styles.metricLabel}>TOTAL</Text>
+
+                  <View style={[styles.metricCard, styles.metricCardProgress]}>
+                    <View style={[styles.metricIconWrap, { backgroundColor: '#EFF6FF' }]}>
+                      <Ionicons name="time-outline" size={18} color="#2563EB" />
+                    </View>
+                    <View style={styles.metricTextWrap}>
+                      <Text style={[styles.metricNumber, { color: '#2563EB' }]}>{inProgressCount}</Text>
+                      <Text style={[styles.metricLabel, { color: '#2563EB' }]}>IN PROGRESS</Text>
+                    </View>
                   </View>
                 </View>
 
-                <View style={[styles.metricCard, styles.metricCardProgress]}>
-                  <View style={[styles.metricIconWrap, { backgroundColor: '#EFF6FF' }]}>
-                    <Ionicons name="time-outline" size={18} color="#2563EB" />
+                <View style={styles.metricPairRow}>
+                  <View style={[styles.metricCard, styles.metricCardPending]}>
+                    <View style={[styles.metricIconWrap, { backgroundColor: '#FFFBEB' }]}>
+                      <Ionicons name="hourglass-outline" size={18} color="#D97706" />
+                    </View>
+                    <View style={styles.metricTextWrap}>
+                      <Text style={[styles.metricNumber, { color: '#D97706' }]}>{pendingCount}</Text>
+                      <Text style={[styles.metricLabel, { color: '#D97706' }]}>PENDING</Text>
+                    </View>
                   </View>
-                  <View style={styles.metricTextWrap}>
-                    <Text style={[styles.metricNumber, { color: '#2563EB' }]}>{inProgressCount}</Text>
-                    <Text style={[styles.metricLabel, { color: '#2563EB' }]}>IN PROGRESS</Text>
-                  </View>
-                </View>
 
-                <View style={[styles.metricCard, styles.metricCardPending]}>
-                  <View style={[styles.metricIconWrap, { backgroundColor: '#FFFBEB' }]}>
-                    <Ionicons name="hourglass-outline" size={18} color="#D97706" />
-                  </View>
-                  <View style={styles.metricTextWrap}>
-                    <Text style={[styles.metricNumber, { color: '#D97706' }]}>{pendingCount}</Text>
-                    <Text style={[styles.metricLabel, { color: '#D97706' }]}>PENDING</Text>
-                  </View>
-                </View>
-
-                <View style={[styles.metricCard, styles.metricCardSuccess]}>
-                  <View style={[styles.metricIconWrap, { backgroundColor: '#ECFDF5' }]}>
-                    <Ionicons name="checkmark-circle-outline" size={18} color="#059669" />
-                  </View>
-                  <View style={styles.metricTextWrap}>
-                    <Text style={[styles.metricNumber, { color: '#059669' }]}>{completedCount}</Text>
-                    <Text style={[styles.metricLabel, { color: '#059669' }]}>RESOLVED</Text>
+                  <View style={[styles.metricCard, styles.metricCardSuccess]}>
+                    <View style={[styles.metricIconWrap, { backgroundColor: '#ECFDF5' }]}>
+                      <Ionicons name="checkmark-circle-outline" size={18} color="#059669" />
+                    </View>
+                    <View style={styles.metricTextWrap}>
+                      <Text style={[styles.metricNumber, { color: '#059669' }]}>{completedCount}</Text>
+                      <Text style={[styles.metricLabel, { color: '#059669' }]}>RESOLVED</Text>
+                    </View>
                   </View>
                 </View>
               </View>
@@ -403,8 +407,8 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 20,
-    paddingVertical: 14,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
     width: '100%',
     maxWidth: ExecutiveTheme.MaxContentWidth,
   },
@@ -421,7 +425,11 @@ const styles = StyleSheet.create({
     backgroundColor: ExecutiveTheme.colors.brandPrimary,
     alignItems: 'center',
     justifyContent: 'center',
-    ...ExecutiveTheme.shadows.soft,
+    elevation: 2,
+    shadowColor: '#4F46E5',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
   },
   avatarText: {
     color: '#FFFFFF',
@@ -451,9 +459,13 @@ const styles = StyleSheet.create({
     gap: 5,
     backgroundColor: ExecutiveTheme.colors.brandPrimary,
     paddingHorizontal: 14,
-    paddingVertical: 8,
-    borderRadius: 11,
-    ...ExecutiveTheme.shadows.soft,
+    height: 42,
+    borderRadius: 12,
+    elevation: 2,
+    shadowColor: '#4F46E5',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.15,
+    shadowRadius: 4,
   },
   newHeaderBtnText: {
     color: '#FFFFFF',
@@ -470,9 +482,12 @@ const styles = StyleSheet.create({
     paddingTop: 14,
   },
   metricsContainer: {
-    flexDirection: 'row',
     gap: 10,
     marginBottom: 16,
+  },
+  metricPairRow: {
+    flexDirection: 'row',
+    gap: 10,
   },
   metricCard: {
     flex: 1,
@@ -484,8 +499,12 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 10,
-    minHeight: 66,
-    ...ExecutiveTheme.shadows.soft,
+    minHeight: 68,
+    elevation: 2,
+    shadowColor: '#1E293B',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.04,
+    shadowRadius: 6,
   },
   metricCardTotal: {
     backgroundColor: '#FFFFFF',
@@ -552,11 +571,15 @@ const styles = StyleSheet.create({
     gap: 6,
     backgroundColor: ExecutiveTheme.colors.surface,
     borderRadius: 20,
-    paddingHorizontal: 13,
-    paddingVertical: 8,
+    paddingHorizontal: 14,
+    minHeight: 42,
     borderWidth: 1,
     borderColor: ExecutiveTheme.colors.border,
-    ...ExecutiveTheme.shadows.soft,
+    elevation: 1,
+    shadowColor: '#1E293B',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.04,
+    shadowRadius: 3,
   },
   shortcutText: {
     fontSize: 12,
@@ -571,20 +594,26 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     width: '100%',
     backgroundColor: ExecutiveTheme.colors.backgroundSubtle,
-    borderRadius: 11,
+    borderRadius: 12,
     padding: 3,
     borderWidth: 1,
     borderColor: ExecutiveTheme.colors.border,
+    minHeight: 44,
   },
   segmentTab: {
     flex: 1,
-    paddingVertical: 8,
     alignItems: 'center',
+    justifyContent: 'center',
     borderRadius: 9,
+    minHeight: 38,
   },
   activeSegmentTab: {
     backgroundColor: ExecutiveTheme.colors.surface,
-    ...ExecutiveTheme.shadows.soft,
+    elevation: 2,
+    shadowColor: '#1E293B',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.06,
+    shadowRadius: 3,
   },
   segmentText: {
     fontSize: 12,
@@ -597,19 +626,23 @@ const styles = StyleSheet.create({
   },
   // Request Cards List (Bounded to maxWidth: 680)
   listContent: {
-    paddingHorizontal: 20,
-    paddingBottom: 28,
+    paddingHorizontal: 16,
+    paddingBottom: 90,
     gap: 12,
     width: '100%',
     maxWidth: ExecutiveTheme.MaxContentWidth,
   },
   requestCard: {
     backgroundColor: ExecutiveTheme.colors.surface,
-    borderRadius: 15,
-    padding: 15,
+    borderRadius: 16,
+    padding: 16,
     borderWidth: 1,
     borderColor: ExecutiveTheme.colors.border,
-    ...ExecutiveTheme.shadows.soft,
+    elevation: 2,
+    shadowColor: '#1E293B',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.04,
+    shadowRadius: 8,
   },
   cardPressed: {
     opacity: 0.88,
@@ -694,6 +727,11 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 3,
+    minHeight: 40,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 8,
+    backgroundColor: ExecutiveTheme.colors.brandLight,
   },
   viewDetailText: {
     fontSize: 12,

@@ -308,9 +308,9 @@ const styles = StyleSheet.create({
     backgroundColor: ExecutiveTheme.colors.background,
   },
   scrollContent: {
-    paddingHorizontal: 20,
-    paddingVertical: 16,
-    paddingBottom: 36,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    paddingBottom: 40,
   },
   container: {
     width: '100%',
@@ -320,11 +320,15 @@ const styles = StyleSheet.create({
   },
   card: {
     backgroundColor: ExecutiveTheme.colors.surface,
-    borderRadius: 14,
+    borderRadius: 16,
     padding: 16,
     borderWidth: 1,
     borderColor: ExecutiveTheme.colors.border,
-    ...ExecutiveTheme.shadows.soft,
+    elevation: 2,
+    shadowColor: '#1E293B',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.04,
+    shadowRadius: 6,
   },
   badgeRow: {
     flexDirection: 'row',

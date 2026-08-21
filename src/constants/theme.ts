@@ -96,6 +96,14 @@ export const ExecutiveTheme = {
     xl: 20,
     full: 9999,
   },
+  layout: {
+    screenPadding: 16,
+    touchTarget: 48,
+    inputHeight: 48,
+    buttonHeight: 50,
+    headerHeight: 56,
+    bottomNavHeight: 58,
+  },
   MaxContentWidth: 860,
   maxContentWidth: 860,
 };
