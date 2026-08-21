@@ -67,7 +67,7 @@ export class PdfService {
     const timelineRows = (request.timeline_logs || []).map(
       (log) => `
         <tr>
-          <td style="width: 140px; font-weight: 700; color: #0F172A; text-transform: uppercase; font-size: 11px;">
+          <td style="width: 140px; font-weight: 700; color: #2E2A4F; text-transform: uppercase; font-size: 11px;">
             ${escapeHtml((log.action || 'ACTIVITY').replace(/_/g, ' '))}
           </td>
           <td style="color: #334155; font-size: 11.5px;">
@@ -102,7 +102,7 @@ export class PdfService {
             }
             body {
               font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
-              color: #0F172A;
+              color: #2E2A4F;
               background-color: #FFFFFF;
               font-size: 12px;
               line-height: 1.5;
@@ -127,14 +127,14 @@ export class PdfService {
               display: flex;
               justify-content: space-between;
               align-items: center;
-              border-bottom: 2px solid #0F172A;
+              border-bottom: 2px solid #7C3AED;
               padding-bottom: 14px;
               margin-bottom: 16px;
             }
             .company-name {
               font-size: 20px;
               font-weight: 800;
-              color: #0F172A;
+              color: #7C3AED;
               letter-spacing: -0.5px;
             }
             .doc-subtitle {
@@ -185,7 +185,7 @@ export class PdfService {
             .kpi-value {
               font-size: 14px;
               font-weight: 800;
-              color: #0F172A;
+              color: #2E2A4F;
             }
             .pill-tag {
               display: inline-block;
@@ -228,7 +228,7 @@ export class PdfService {
               color: #334155;
             }
             .info-line strong {
-              color: #0F172A;
+              color: #2E2A4F;
             }
 
             /* Issue Scope Box */
@@ -242,7 +242,7 @@ export class PdfService {
             .section-box-title {
               font-size: 11px;
               font-weight: 800;
-              color: #0F172A;
+              color: #2E2A4F;
               text-transform: uppercase;
               letter-spacing: 0.5px;
               margin-bottom: 6px;
@@ -252,7 +252,7 @@ export class PdfService {
             .issue-headline {
               font-size: 13.5px;
               font-weight: 800;
-              color: #0F172A;
+              color: #2E2A4F;
               margin-bottom: 4px;
             }
             .issue-text {
@@ -281,7 +281,7 @@ export class PdfService {
               border: 1px solid #E2E8F0;
               padding: 8px 10px;
               font-size: 11.5px;
-              color: #0F172A;
+              color: #2E2A4F;
             }
 
             /* Technician Sign-Off Box */
@@ -426,7 +426,7 @@ export class PdfService {
               </div>
               <div class="kpi-card">
                 <div class="kpi-label">Total Actual Cost</div>
-                <div class="kpi-value" style="color: #16A34A;">$${request.actual_cost != null ? Number(request.actual_cost).toFixed(2) : '0.00'}</div>
+                <div class="kpi-value" style="color: #16A34A;">₹${request.actual_cost != null ? Number(request.actual_cost).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '0.00'}</div>
               </div>
             </div>
 
@@ -465,16 +465,16 @@ export class PdfService {
               <table class="finance-table">
                 <thead>
                   <tr>
-                    <th>Estimated Quote</th>
-                    <th>Final Actual Cost</th>
+                    <th>Estimated Quote (₹)</th>
+                    <th>Final Actual Cost (₹)</th>
                     <th>Warranty Terms</th>
                     <th>Purchase / Asset Ref</th>
                   </tr>
                 </thead>
                 <tbody>
                   <tr>
-                    <td>$${request.estimated_cost != null ? Number(request.estimated_cost).toFixed(2) : '0.00'}</td>
-                    <td><strong style="color: #16A34A;">$${request.actual_cost != null ? Number(request.actual_cost).toFixed(2) : '0.00'}</strong></td>
+                    <td>₹${request.estimated_cost != null ? Number(request.estimated_cost).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '0.00'}</td>
+                    <td><strong style="color: #16A34A;">₹${request.actual_cost != null ? Number(request.actual_cost).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '0.00'}</strong></td>
                     <td>${(request.warranty_status || 'Under Warranty').replace(/_/g, ' ').toUpperCase()}</td>
                     <td>${escapeHtml(request.purchase_date || 'Standard Coverage')}</td>
                   </tr>

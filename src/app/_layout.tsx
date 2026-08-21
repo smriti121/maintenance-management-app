@@ -8,7 +8,7 @@ export default function RootLayout() {
       <Stack
         screenOptions={{
           headerShown: false,
-          contentStyle: { backgroundColor: '#F8FAFC' },
+          contentStyle: { backgroundColor: '#FAF9FE' },
           animation: 'slide_from_right',
         }}
       >
@@ -16,8 +16,12 @@ export default function RootLayout() {
         <Stack.Screen name="user/dashboard" />
         <Stack.Screen name="user/create-request" />
         <Stack.Screen name="user/request-detail" />
+        <Stack.Screen name="user/reports" />
+        <Stack.Screen name="user/profile" />
         <Stack.Screen name="staff/dashboard" />
         <Stack.Screen name="staff/task-detail" />
+        <Stack.Screen name="staff/reports" />
+        <Stack.Screen name="staff/profile" />
       </Stack>
     </>
   );

@@ -1,3 +1,4 @@
+import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import {
@@ -6,12 +7,14 @@ import {
   Platform,
   Pressable,
   ScrollView,
+  StatusBar,
   StyleSheet,
   Text,
   TextInput,
   View,
 } from 'react-native';
 
+import { ExecutiveTheme } from '@/constants/theme';
 import { supabase } from '@/lib/supabase';
 import { UserRole } from '@/types/maintenance';
 import { showAlert } from '@/utils/alert';
@@ -78,10 +81,8 @@ export default function AuthScreen() {
     setLoading(true);
 
     try {
-      // 1. Purge previous session
       await supabase.auth.signOut();
 
-      // 2. Supabase Auth Sign In
       const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
         email: cleanEmail,
         password,
@@ -91,48 +92,34 @@ export default function AuthScreen() {
         throw new Error(authError?.message || 'Login failed. Please check your email and password.');
       }
 
-      // 3. Fetch Registered Role from `profiles` table
       const { data: profile } = await supabase
         .from('profiles')
         .select('*')
         .eq('id', authData.user.id)
         .single();
 
-      const registeredRole: UserRole =
-        profile?.role || authData.user.user_metadata?.role || 'user';
+      const userRole = profile?.role || authData.user.user_metadata?.role || 'user';
 
-      // 4. Strict RBAC Enforcement
-      if (registeredRole !== role) {
+      if (userRole !== role) {
         await supabase.auth.signOut();
-
-        const actualRoleName = registeredRole === 'maintenance_staff' ? 'Maintenance Staff' : 'Resident / User';
-        const selectedRoleName = role === 'maintenance_staff' ? 'Maintenance Staff' : 'Resident / User';
+        const actualRoleName = userRole === 'maintenance_staff' ? 'Maintenance Staff' : 'Resident';
+        const selectedRoleName = role === 'maintenance_staff' ? 'Maintenance Staff' : 'Resident';
 
         showAlert(
-          'Access Denied (RBAC) 🚫',
+          'Access Restriction 🔒',
           `Your account is registered as "${actualRoleName}". You cannot log in under the "${selectedRoleName}" option.\n\nPlease select the "${actualRoleName}" option and try again.`
         );
         return;
       }
 
-      // 5. Ensure profile exists
-      if (!profile) {
-        await supabase.from('profiles').insert({
-          id: authData.user.id,
-          email: cleanEmail,
-          full_name: authData.user.user_metadata?.full_name || 'User',
-          role: registeredRole,
-        });
-      }
-
-      // 6. Route to role-verified dashboard
-      if (registeredRole === 'maintenance_staff') {
+      if (userRole === 'maintenance_staff') {
         router.replace('/staff/dashboard');
       } else {
         router.replace('/user/dashboard');
       }
     } catch (err: any) {
-      showAlert('Login Failed', err?.message || 'An error occurred during sign in.');
+      console.error('Sign in error:', err);
+      showAlert('Login Notice', err?.message || 'Could not authenticate user.');
     } finally {
       setLoading(false);
     }
@@ -142,8 +129,8 @@ export default function AuthScreen() {
     const cleanEmail = email.trim().toLowerCase();
     const cleanName = fullName.trim();
 
-    if (!cleanEmail || !password || !cleanName) {
-      showAlert('Missing Information', 'Please fill in your name, email, and password.');
+    if (!cleanName || !cleanEmail || !password) {
+      showAlert('Missing Fields', 'Please complete all required fields.');
       return;
     }
 
@@ -245,7 +232,7 @@ export default function AuthScreen() {
   if (initialChecking) {
     return (
       <View style={styles.loadingScreen}>
-        <ActivityIndicator size="large" color="#007AFF" />
+        <ActivityIndicator size="large" color={ExecutiveTheme.colors.brandPrimary} />
       </View>
     );
   }
@@ -255,25 +242,33 @@ export default function AuthScreen() {
       style={styles.screen}
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
+      <StatusBar barStyle="dark-content" backgroundColor={ExecutiveTheme.colors.background} />
       <ScrollView
         contentContainerStyle={styles.scrollContent}
         keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
       >
         <View style={styles.container}>
-          {/* iOS Logo & Header */}
+          {/* Logo & Header — Luxury Gradient Emblem */}
           <View style={styles.logoCircle}>
-            <Text style={styles.logoIcon}>🛠️</Text>
+            <Ionicons name="sparkles" size={28} color="#FFFFFF" />
           </View>
 
           <Text style={styles.appTitle}>FixFlow</Text>
           <Text style={styles.appSubtitle}>Smart Maintenance Management</Text>
 
-          {/* iOS Segmented Control Tab Switcher */}
+          {/* Segmented Control Tab Switcher with Vector Icons */}
           <View style={styles.segmentedControl}>
             <Pressable
               style={[styles.segmentTab, !isSignUp && styles.activeSegmentTab]}
               onPress={() => handleTabChange(false)}
             >
+              <Ionicons
+                name="log-in-outline"
+                size={16}
+                color={!isSignUp ? ExecutiveTheme.colors.brandPrimary : ExecutiveTheme.colors.textSecondary}
+                style={styles.tabIcon}
+              />
               <Text style={[styles.segmentText, !isSignUp && styles.activeSegmentText]}>
                 Sign In
               </Text>
@@ -283,20 +278,27 @@ export default function AuthScreen() {
               style={[styles.segmentTab, isSignUp && styles.activeSegmentTab]}
               onPress={() => handleTabChange(true)}
             >
+              <Ionicons
+                name="person-add-outline"
+                size={16}
+                color={isSignUp ? ExecutiveTheme.colors.brandPrimary : ExecutiveTheme.colors.textSecondary}
+                style={styles.tabIcon}
+              />
               <Text style={[styles.segmentText, isSignUp && styles.activeSegmentText]}>
                 Create Account
               </Text>
             </Pressable>
           </View>
 
-          {/* iOS Inset Card Form */}
+          {/* Card Form */}
           <View style={styles.card}>
             {/* Role Picker */}
             <Text style={styles.sectionLabel}>
-              {isSignUp ? 'SELECT ACCOUNT TYPE' : 'LOGGING IN AS'}
+              {isSignUp ? 'SELECT ACCOUNT TYPE' : 'SIGN IN PORTAL'}
             </Text>
-            
+
             <View style={styles.rolePicker}>
+              {/* Resident Role Option */}
               <Pressable
                 style={[
                   styles.roleCard,
@@ -305,7 +307,11 @@ export default function AuthScreen() {
                 onPress={() => setRole('user')}
               >
                 <View style={[styles.roleIconCircle, role === 'user' && styles.roleIconCircleActive]}>
-                  <Text style={styles.roleIcon}>👤</Text>
+                  <Ionicons
+                    name="home"
+                    size={20}
+                    color={role === 'user' ? '#FFFFFF' : ExecutiveTheme.colors.brandPrimary}
+                  />
                 </View>
                 <Text style={[styles.roleTitle, role === 'user' && styles.roleTitleActive]}>
                   Resident
@@ -315,6 +321,7 @@ export default function AuthScreen() {
                 </Text>
               </Pressable>
 
+              {/* Maintenance Staff Option */}
               <Pressable
                 style={[
                   styles.roleCard,
@@ -323,7 +330,11 @@ export default function AuthScreen() {
                 onPress={() => setRole('maintenance_staff')}
               >
                 <View style={[styles.roleIconCircle, role === 'maintenance_staff' && styles.roleIconCircleActive]}>
-                  <Text style={styles.roleIcon}>🔧</Text>
+                  <Ionicons
+                    name="construct"
+                    size={20}
+                    color={role === 'maintenance_staff' ? '#FFFFFF' : ExecutiveTheme.colors.brandPrimary}
+                  />
                 </View>
                 <Text style={[styles.roleTitle, role === 'maintenance_staff' && styles.roleTitleActive]}>
                   Technician
@@ -342,7 +353,7 @@ export default function AuthScreen() {
                   <TextInput
                     style={styles.input}
                     placeholder="e.g. Alex Rivera"
-                    placeholderTextColor="#8E8E93"
+                    placeholderTextColor={ExecutiveTheme.colors.textMuted}
                     value={fullName}
                     onChangeText={setFullName}
                     autoCapitalize="words"
@@ -354,7 +365,7 @@ export default function AuthScreen() {
               <TextInput
                 style={styles.input}
                 placeholder="name@example.com"
-                placeholderTextColor="#8E8E93"
+                placeholderTextColor={ExecutiveTheme.colors.textMuted}
                 value={email}
                 onChangeText={setEmail}
                 autoCapitalize="none"
@@ -365,15 +376,15 @@ export default function AuthScreen() {
               <Text style={styles.inputLabel}>PASSWORD</Text>
               <TextInput
                 style={styles.input}
-                placeholder="Enter password"
-                placeholderTextColor="#8E8E93"
+                placeholder="Enter your password"
+                placeholderTextColor={ExecutiveTheme.colors.textMuted}
                 value={password}
                 onChangeText={setPassword}
                 secureTextEntry
               />
             </View>
 
-            {/* iOS System Blue Button */}
+            {/* Submit Button */}
             <Pressable
               style={({ pressed }) => [
                 styles.submitButton,
@@ -403,11 +414,11 @@ export default function AuthScreen() {
 const styles = StyleSheet.create({
   screen: {
     flex: 1,
-    backgroundColor: '#F2F2F7',
+    backgroundColor: ExecutiveTheme.colors.background,
   },
   loadingScreen: {
     flex: 1,
-    backgroundColor: '#F2F2F7',
+    backgroundColor: ExecutiveTheme.colors.background,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -419,179 +430,173 @@ const styles = StyleSheet.create({
   },
   container: {
     width: '100%',
-    maxWidth: 460,
+    maxWidth: 440,
     alignSelf: 'center',
   },
   logoCircle: {
-    width: 68,
-    height: 68,
+    width: 66,
+    height: 66,
     borderRadius: 20,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: ExecutiveTheme.colors.brandPrimary,
     alignItems: 'center',
     justifyContent: 'center',
     alignSelf: 'center',
     marginBottom: 12,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.08,
-    shadowRadius: 8,
-    elevation: 3,
-  },
-  logoIcon: {
-    fontSize: 32,
+    ...ExecutiveTheme.shadows.card,
   },
   appTitle: {
-    fontSize: 28,
+    fontSize: 26,
     fontWeight: '800',
-    color: '#000000',
+    color: ExecutiveTheme.colors.textPrimary,
     textAlign: 'center',
     letterSpacing: -0.5,
   },
   appSubtitle: {
-    fontSize: 14,
-    color: '#8E8E93',
+    fontSize: 13,
+    color: ExecutiveTheme.colors.textSecondary,
     textAlign: 'center',
-    marginTop: 2,
+    marginTop: 3,
     marginBottom: 20,
     fontWeight: '500',
   },
   segmentedControl: {
     flexDirection: 'row',
-    backgroundColor: '#E5E5EA',
+    backgroundColor: ExecutiveTheme.colors.backgroundSubtle,
     borderRadius: 12,
     padding: 3,
-    marginBottom: 16,
+    marginBottom: 14,
+    borderWidth: 1,
+    borderColor: ExecutiveTheme.colors.border,
   },
   segmentTab: {
     flex: 1,
-    paddingVertical: 8,
+    flexDirection: 'row',
+    paddingVertical: 9,
     alignItems: 'center',
-    borderRadius: 10,
+    justifyContent: 'center',
+    borderRadius: 9,
+  },
+  tabIcon: {
+    marginRight: 6,
   },
   activeSegmentTab: {
-    backgroundColor: '#FFFFFF',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.12,
-    shadowRadius: 3,
-    elevation: 2,
+    backgroundColor: ExecutiveTheme.colors.surface,
+    ...ExecutiveTheme.shadows.soft,
   },
   segmentText: {
-    fontSize: 13.5,
+    fontSize: 13,
     fontWeight: '600',
-    color: '#8E8E93',
+    color: ExecutiveTheme.colors.textSecondary,
   },
   activeSegmentText: {
-    color: '#000000',
-    fontWeight: '700',
+    color: ExecutiveTheme.colors.brandPrimary,
+    fontWeight: '800',
   },
   card: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 20,
-    padding: 22,
-    borderWidth: 0.5,
-    borderColor: '#E5E5EA',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 10,
-    elevation: 2,
+    backgroundColor: ExecutiveTheme.colors.surface,
+    borderRadius: 18,
+    padding: 20,
+    borderWidth: 1,
+    borderColor: ExecutiveTheme.colors.border,
+    ...ExecutiveTheme.shadows.card,
   },
   sectionLabel: {
-    fontSize: 11.5,
-    fontWeight: '700',
-    color: '#8E8E93',
-    letterSpacing: 0.3,
+    fontSize: 11,
+    fontWeight: '800',
+    color: ExecutiveTheme.colors.textSecondary,
+    letterSpacing: 0.5,
     marginBottom: 10,
   },
   rolePicker: {
     flexDirection: 'row',
     gap: 10,
-    marginBottom: 18,
+    marginBottom: 16,
   },
   roleCard: {
     flex: 1,
-    backgroundColor: '#F2F2F7',
-    borderRadius: 14,
+    backgroundColor: ExecutiveTheme.colors.backgroundSubtle,
+    borderRadius: 12,
     padding: 12,
     alignItems: 'center',
     borderWidth: 1.5,
-    borderColor: 'transparent',
+    borderColor: ExecutiveTheme.colors.border,
   },
   roleCardActive: {
-    backgroundColor: '#EBF4FF',
-    borderColor: '#007AFF',
+    backgroundColor: ExecutiveTheme.colors.brandLightMuted,
+    borderColor: ExecutiveTheme.colors.brandPrimary,
+    ...ExecutiveTheme.shadows.soft,
   },
   roleIconCircle: {
     width: 38,
     height: 38,
-    borderRadius: 19,
-    backgroundColor: '#FFFFFF',
+    borderRadius: 10,
+    backgroundColor: ExecutiveTheme.colors.brandLight,
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 6,
+    borderWidth: 0.8,
+    borderColor: ExecutiveTheme.colors.border,
   },
   roleIconCircleActive: {
-    backgroundColor: '#007AFF',
-  },
-  roleIcon: {
-    fontSize: 18,
+    backgroundColor: ExecutiveTheme.colors.brandPrimary,
+    borderColor: ExecutiveTheme.colors.brandPrimary,
   },
   roleTitle: {
     fontSize: 13.5,
     fontWeight: '700',
-    color: '#1C1C1E',
+    color: ExecutiveTheme.colors.textPrimary,
   },
   roleTitleActive: {
-    color: '#007AFF',
+    color: ExecutiveTheme.colors.brandPrimary,
+    fontWeight: '800',
   },
   roleSubtext: {
-    fontSize: 11,
-    color: '#8E8E93',
+    fontSize: 10.5,
+    color: ExecutiveTheme.colors.textSecondary,
     marginTop: 2,
   },
   inputGroup: {
-    marginBottom: 18,
+    marginBottom: 16,
   },
   inputLabel: {
-    fontSize: 11.5,
+    fontSize: 11,
     fontWeight: '700',
-    color: '#8E8E93',
+    color: ExecutiveTheme.colors.textSecondary,
     marginBottom: 6,
-    marginTop: 10,
-    letterSpacing: 0.3,
+    marginTop: 8,
+    letterSpacing: 0.4,
   },
   input: {
-    height: 48,
-    backgroundColor: '#F2F2F7',
-    borderRadius: 12,
+    height: 46,
+    backgroundColor: ExecutiveTheme.colors.backgroundSubtle,
+    borderRadius: 10,
     paddingHorizontal: 14,
-    fontSize: 15,
-    color: '#000000',
+    fontSize: 14.5,
+    color: ExecutiveTheme.colors.textPrimary,
     fontWeight: '500',
+    borderWidth: 1,
+    borderColor: ExecutiveTheme.colors.border,
   },
   submitButton: {
-    height: 50,
-    backgroundColor: '#007AFF',
-    borderRadius: 14,
+    height: 48,
+    backgroundColor: ExecutiveTheme.colors.brandPrimary,
+    borderRadius: 12,
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: '#007AFF',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.25,
-    shadowRadius: 8,
-    elevation: 3,
     marginTop: 6,
+    ...ExecutiveTheme.shadows.soft,
   },
   submitButtonText: {
     color: '#FFFFFF',
-    fontSize: 16,
-    fontWeight: '700',
+    fontSize: 14.5,
+    fontWeight: '800',
+    letterSpacing: 0.2,
   },
   buttonPressed: {
-    opacity: 0.85,
+    opacity: 0.88,
+    transform: [{ scale: 0.99 }],
   },
   buttonDisabled: {
-    backgroundColor: '#A2CAFC',
+    backgroundColor: '#A5B4FC',
   },
 });

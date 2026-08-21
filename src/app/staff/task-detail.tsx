@@ -10,15 +10,16 @@ import {
   Pressable,
   SafeAreaView,
   ScrollView,
-  StatusBar,
   StyleSheet,
   Text,
   TextInput,
   View,
 } from 'react-native';
 
+import { ExecutiveHeader } from '@/components/executive-header';
 import { PriorityBadge, StatusBadge } from '@/components/status-badge';
 import { TimelineView } from '@/components/timeline-view';
+import { ExecutiveTheme, formatINR } from '@/constants/theme';
 import { supabase } from '@/lib/supabase';
 import { AiService, AiTriageResult } from '@/services/ai-service';
 import { MaintenanceService } from '@/services/maintenance-service';
@@ -84,30 +85,22 @@ export default function StaffTaskDetailScreen() {
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'maintenance_requests', filter: `id=eq.${id}` },
-        () => {
-          loadTask(false);
-        }
+        () => loadTask(false)
       )
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'maintenance_request_photos', filter: `request_id=eq.${id}` },
-        () => {
-          loadTask(false);
-        }
+        () => loadTask(false)
       )
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'maintenance_timeline_logs', filter: `request_id=eq.${id}` },
-        () => {
-          loadTask(false);
-        }
+        () => loadTask(false)
       )
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'maintenance_time_logs', filter: `request_id=eq.${id}` },
-        () => {
-          loadTask(false);
-        }
+        () => loadTask(false)
       )
       .subscribe();
 
@@ -220,39 +213,7 @@ export default function StaffTaskDetailScreen() {
     }
   }
 
-  // 3. Mark Completed Quick Action
-  async function handleMarkCompleted() {
-    if (!task) return;
-    confirmAction({
-      title: 'Resolve Task',
-      message: 'Are you sure you want to mark this maintenance task as Completed?',
-      confirmText: 'Resolve',
-      onConfirm: async () => {
-        setSubmitting(true);
-        try {
-          const {
-            data: { user },
-          } = await supabase.auth.getUser();
-          if (!user) throw new Error('Session expired');
-
-          await MaintenanceService.updateRequestStatus(
-            task.id,
-            'completed',
-            user.id,
-            'Task marked as completed by technician.'
-          );
-          await loadTask();
-          showAlert('Task Resolved! 🎉', 'Maintenance work marked as completed.');
-        } catch (err: any) {
-          showAlert('Notice', err?.message || 'Could not complete task.');
-        } finally {
-          setSubmitting(false);
-        }
-      },
-    });
-  }
-
-  // 4. Post Progress Note
+  // 3. Post Progress Note
   async function handleAddNote() {
     if (!task || !noteText.trim()) return;
     setSubmitting(true);
@@ -265,21 +226,21 @@ export default function StaffTaskDetailScreen() {
       await MaintenanceService.addStaffNote(task.id, user.id, noteText.trim());
       setNoteText('');
       await loadTask();
-      showAlert('Note Posted', 'Progress note added to audit trail.');
+      showAlert('Note Posted', 'Progress update logged into immutable audit trail.');
     } catch (err: any) {
-      showAlert('Notice', err?.message || 'Could not post note.');
+      showAlert('Notice', err?.message || 'Could not add note.');
     } finally {
       setSubmitting(false);
     }
   }
 
-  // 5. Upload Before/After Photo
+  // 4. Photo Upload (Before / After)
   async function handleUploadPhoto(photoType: PhotoType) {
     if (!task) return;
     try {
       const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
       if (status !== 'granted') {
-        showAlert('Permission Required', 'Access to photo library is required to upload work photos.');
+        showAlert('Permission Required', 'FixFlow requires photo access to attach inspection photos.');
         return;
       }
 
@@ -290,12 +251,11 @@ export default function StaffTaskDetailScreen() {
         base64: true,
       });
 
-      if (!result.canceled && result.assets && result.assets.length > 0) {
-        setSubmitting(true);
+      if (!result.canceled && result.assets && result.assets[0]) {
         const asset = result.assets[0];
         let uri = asset.uri;
+        const mime = asset.mimeType || 'image/jpeg';
         if (asset.base64) {
-          const mime = asset.mimeType || 'image/jpeg';
           uri = `data:${mime};base64,${asset.base64}`;
         }
 
@@ -305,39 +265,41 @@ export default function StaffTaskDetailScreen() {
 
         if (!user) throw new Error('Session expired');
 
+        setSubmitting(true);
         await MaintenanceService.uploadPhoto(
           task.id,
           user.id,
           {
             uri,
             name: asset.fileName || `${photoType}-photo-${Date.now()}.jpg`,
-            mimeType: asset.mimeType || 'image/jpeg',
+            mimeType: mime,
           },
           photoType,
-          (task.photos || []).length
+          0
         );
 
         await loadTask();
         showAlert('Photo Uploaded', `${photoType.toUpperCase()} photo attached to task.`);
       }
     } catch (err: any) {
-      console.error('Photo upload notice:', err);
+      console.error('Photo upload error:', err);
       showAlert('Photo Notice', err?.message || 'Could not upload photo.');
     } finally {
       setSubmitting(false);
     }
   }
 
-  // 6. Record Time Log
-  async function handleRecordTime() {
+  // 5. Log Time (Labor Duration)
+  async function handleLogTime() {
     if (!task) return;
-    const mins = parseInt(timeMinutes, 10);
+    const mins = parseInt(timeMinutes.trim(), 10);
     if (isNaN(mins) || mins <= 0) {
-      showAlert('Invalid Time', 'Please enter a valid number of minutes.');
+      showAlert('Invalid Time', 'Please enter a valid positive duration in minutes.');
       return;
     }
+
     if (!timeDescription.trim()) {
-      showAlert('Description Required', 'Please describe the maintenance work performed.');
+      showAlert('Missing Description', 'Please enter a short description of the work performed.');
       return;
     }
 
@@ -355,13 +317,14 @@ export default function StaffTaskDetailScreen() {
       await loadTask();
       showAlert('Time Recorded', `Logged ${mins} minutes for this task.`);
     } catch (err: any) {
-      showAlert('Notice', err?.message || 'Could not log time.');
+      console.error('Time log error:', err);
+      showAlert('Time Log Notice', err?.message || 'Could not log time.');
     } finally {
       setSubmitting(false);
     }
   }
 
-  // 7. Save Repair & Warranty Details
+  // 6. Save Repair & Replacement Details (in ₹ INR)
   async function handleSaveRepairDetails() {
     if (!task) return;
     setSubmitting(true);
@@ -369,26 +332,26 @@ export default function StaffTaskDetailScreen() {
       const {
         data: { user },
       } = await supabase.auth.getUser();
-      if (!user) throw new Error('Session expired. Please sign in again.');
+      if (!user) throw new Error('Session expired');
 
-      const estNum = estimatedCost.trim() ? parseFloat(estimatedCost.trim()) : null;
-      const actNum = actualCost.trim() ? parseFloat(actualCost.trim()) : null;
+      const parsedEst = estimatedCost.trim() ? parseFloat(estimatedCost.trim()) : undefined;
+      const parsedAct = actualCost.trim() ? parseFloat(actualCost.trim()) : undefined;
 
       await MaintenanceService.updateRepairDetails(task.id, user.id, {
-        estimated_cost: estNum !== null && !isNaN(estNum) ? estNum : null,
-        actual_cost: actNum !== null && !isNaN(actNum) ? actNum : null,
+        estimated_cost: parsedEst !== undefined && !isNaN(parsedEst) ? parsedEst : null,
+        actual_cost: parsedAct !== undefined && !isNaN(parsedAct) ? parsedAct : null,
         warranty_status: warrantyStatus,
-        purchase_date: purchaseDate.trim() || null,
-        replacement_details: replacementDetails.trim() || null,
-        completion_summary: completionSummary.trim() || null,
+        purchase_date: purchaseDate.trim() || undefined,
+        replacement_details: replacementDetails.trim() || undefined,
+        completion_summary: completionSummary.trim() || undefined,
       });
 
       setTask((prev) =>
         prev
           ? {
               ...prev,
-              estimated_cost: estNum !== null && !isNaN(estNum) ? estNum : null,
-              actual_cost: actNum !== null && !isNaN(actNum) ? actNum : null,
+              estimated_cost: parsedEst !== undefined && !isNaN(parsedEst) ? parsedEst : null,
+              actual_cost: parsedAct !== undefined && !isNaN(parsedAct) ? parsedAct : null,
               warranty_status: warrantyStatus,
               purchase_date: purchaseDate.trim() || null,
               replacement_details: replacementDetails.trim() || null,
@@ -397,7 +360,7 @@ export default function StaffTaskDetailScreen() {
           : null
       );
 
-      showAlert('Details Saved ✅', 'Financial, warranty, and replacement details have been saved successfully.');
+      showAlert('Details Saved ✅', 'Financial quotes, warranty, and replacement details saved in ₹ INR.');
     } catch (err: any) {
       console.error('Save repair details notice:', err);
       showAlert('Save Notice', err?.message || 'Could not save repair details.');
@@ -406,7 +369,7 @@ export default function StaffTaskDetailScreen() {
     }
   }
 
-  // 8. AI Generate Completion Summary
+  // 7. AI Generate Completion Summary
   async function handleAiGenerateSummary() {
     if (!task) return;
     setAiGenerating(true);
@@ -440,26 +403,29 @@ export default function StaffTaskDetailScreen() {
 
   if (loading) {
     return (
-      <View style={styles.centerContainer}>
-        <ActivityIndicator size="large" color="#007AFF" />
-        <Text style={styles.loadingText}>Loading technician workspace...</Text>
-      </View>
+      <SafeAreaView style={styles.screen}>
+        <ExecutiveHeader title="Technician Workspace" showBack={true} fallbackRoute="/staff/dashboard" />
+        <View style={styles.centerContainer}>
+          <ActivityIndicator size="large" color={ExecutiveTheme.colors.brandDark} />
+          <Text style={styles.loadingText}>Loading technician workspace...</Text>
+        </View>
+      </SafeAreaView>
     );
   }
 
   if (!task) {
     return (
-      <View style={styles.centerContainer}>
-        <Text style={styles.notFoundText}>Task not found.</Text>
-        <Pressable style={styles.navBackBtn} onPress={() => router.back()}>
-          <Text style={styles.navBackText}>‹</Text>
-        </Pressable>
-      </View>
+      <SafeAreaView style={styles.screen}>
+        <ExecutiveHeader title="Technician Workspace" showBack={true} fallbackRoute="/staff/dashboard" />
+        <View style={styles.centerContainer}>
+          <Text style={styles.notFoundText}>Task not found.</Text>
+        </View>
+      </SafeAreaView>
     );
   }
 
   const issuePhotos = (task.photos || []).filter(
-    (p) => !p.photo_type || p.photo_type === 'issue'
+    (p) => !p.photo_type || p.photo_type === 'issue' || p.photo_type === 'before'
   );
   const beforePhotos = (task.photos || []).filter((p) => p.photo_type === 'before');
   const afterPhotos = (task.photos || []).filter(
@@ -473,36 +439,37 @@ export default function StaffTaskDetailScreen() {
 
   return (
     <SafeAreaView style={styles.screen}>
-      <KeyboardAvoidingView
-        style={{ flex: 1 }}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-      >
-        {/* iOS Top Navigation Bar */}
-        <View style={styles.topBar}>
-          <Pressable onPress={() => router.back()} style={styles.navBackBtn}>
-            <Text style={styles.navBackText}>‹</Text>
-          </Pressable>
-          <Text style={styles.topBarTitle}>Technician Workspace</Text>
+      <ExecutiveHeader
+        title="Technician Workspace"
+        subtitle={`Order #${(task.id || '').slice(0, 8).toUpperCase()}`}
+        showBack={true}
+        fallbackRoute="/staff/dashboard"
+        rightElement={
           <Pressable
             style={({ pressed }) => [styles.pdfTopBtn, pressed && styles.pressed]}
             onPress={handleExportPdf}
             disabled={pdfGenerating}
           >
             {pdfGenerating ? (
-              <ActivityIndicator size="small" color="#007AFF" />
+              <ActivityIndicator size="small" color="#FFFFFF" />
             ) : (
-              <Text style={styles.pdfTopBtnText}>📄 PDF</Text>
+              <Text style={styles.pdfTopBtnText}>📄 PDF Report</Text>
             )}
           </Pressable>
-        </View>
+        }
+      />
 
+      <KeyboardAvoidingView
+        style={{ flex: 1 }}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      >
         <ScrollView
           contentContainerStyle={styles.scrollContent}
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
           <View style={styles.container}>
-            {/* Section 1: Task Header & Actions */}
+            {/* Section 1: Task Header & Status Selector */}
             <View style={styles.card}>
               <View style={styles.badgeRow}>
                 <StatusBadge status={task.status || 'pending'} size="medium" />
@@ -521,15 +488,15 @@ export default function StaffTaskDetailScreen() {
                 <Text style={styles.requesterEmail}>{task.requester?.email || 'N/A'}</Text>
               </View>
 
-              {/* Interactive Status Selector Chips */}
-              <Text style={styles.fieldLabel}>WORK ORDER STATUS</Text>
+              {/* 1-Tap Quick Status Switcher Chips */}
+              <Text style={styles.fieldLabel}>UPDATE WORK ORDER STATUS</Text>
               <View style={styles.statusChipsGrid}>
                 {(
                   [
                     ['assigned', '⏳ Assigned', '#64748B', '#F1F5F9'],
-                    ['in_progress', '▶️ In Progress', '#007AFF', '#EBF4FF'],
-                    ['on_hold', '⏸️ On Hold', '#FF9500', '#FFF8EB'],
-                    ['completed', '✅ Completed', '#34C759', '#EBF9F1'],
+                    ['in_progress', '▶️ In Progress', '#B45309', '#FFFBEB'],
+                    ['on_hold', '⏸️ On Hold', '#C2410C', '#FFF7ED'],
+                    ['completed', '✅ Resolved', '#15803D', '#F0FDF4'],
                   ] as [RequestStatus, string, string, string][]
                 ).map(([st, label, activeColor, activeBg]) => {
                   const isSelected = task.status === st;
@@ -560,16 +527,13 @@ export default function StaffTaskDetailScreen() {
                 })}
               </View>
 
-              {/* Status Note & Quick Actions */}
-              <View style={styles.statusActionRow}>
-                <Pressable
-                  style={styles.statusChangeBtn}
-                  onPress={() => setStatusModalVisible(true)}
-                  disabled={submitting}
-                >
-                  <Text style={styles.statusChangeBtnText}>📝 Add Status Note</Text>
-                </Pressable>
-              </View>
+              <Pressable
+                style={styles.addNoteBtnAlt}
+                onPress={() => setStatusModalVisible(true)}
+                disabled={submitting}
+              >
+                <Text style={styles.addNoteBtnAltText}>📝 Add Custom Status Note</Text>
+              </Pressable>
             </View>
 
             {/* Section 2: AI Smart Task Summary & Triage Card */}
@@ -577,7 +541,7 @@ export default function StaffTaskDetailScreen() {
               <View style={styles.aiTriageCard}>
                 <View style={styles.aiTriageHeader}>
                   <View style={styles.aiTriageBadge}>
-                    <Text style={styles.aiTriageBadgeText}>🤖 AI Task Summary & Triage</Text>
+                    <Text style={styles.aiTriageBadgeText}>🤖 AI Task Diagnostic</Text>
                   </View>
                   <Text style={styles.aiCategoryTag}>{aiTriage.category}</Text>
                 </View>
@@ -590,24 +554,12 @@ export default function StaffTaskDetailScreen() {
                     <Text style={styles.aiMetricValue}>{aiTriage.estimatedDuration}</Text>
                   </View>
                   <View style={styles.aiMetricBox}>
-                    <Text style={styles.aiMetricLabel}>Cost Benchmark</Text>
+                    <Text style={styles.aiMetricLabel}>Cost Benchmark (₹)</Text>
                     <Text style={styles.aiMetricValue}>{aiTriage.estimatedCostRange}</Text>
                   </View>
                   <View style={styles.aiMetricBox}>
                     <Text style={styles.aiMetricLabel}>Priority Level</Text>
-                    <Text
-                      style={[
-                        styles.aiMetricValue,
-                        {
-                          color:
-                            aiTriage.recommendedPriority === 'urgent'
-                              ? '#FF3B30'
-                              : aiTriage.recommendedPriority === 'high'
-                              ? '#FF9500'
-                              : '#34C759',
-                        },
-                      ]}
-                    >
+                    <Text style={styles.aiMetricValue}>
                       {aiTriage.recommendedPriority.toUpperCase()}
                     </Text>
                   </View>
@@ -626,7 +578,173 @@ export default function StaffTaskDetailScreen() {
               </View>
             )}
 
-            {/* Section 2: Photos Gallery (Issue, Before, After) */}
+            {/* Section 3: Time Logging & Labor */}
+            <View style={styles.card}>
+              <View style={styles.cardHeaderRow}>
+                <Text style={styles.sectionHeader}>LABOR DURATION & WORK LOGS</Text>
+                <Pressable
+                  style={({ pressed }) => [styles.actionSmallBtn, pressed && styles.pressed]}
+                  onPress={() => setTimeModalVisible(true)}
+                  disabled={submitting}
+                >
+                  <Text style={styles.actionSmallBtnText}>＋ Log Time</Text>
+                </Pressable>
+              </View>
+
+              <View style={styles.timeSummaryCard}>
+                <Text style={styles.timeSummaryNum}>{totalTimeMinutes} mins</Text>
+                <Text style={styles.timeSummaryLabel}>
+                  Total Labor Recorded ({(totalTimeMinutes / 60).toFixed(1)} hrs)
+                </Text>
+              </View>
+
+              {task.time_logs && task.time_logs.length > 0 ? (
+                <View style={styles.timeLogsList}>
+                  {task.time_logs.map((log) => (
+                    <View key={log.id} style={styles.timeLogItem}>
+                      <View style={styles.timeLogHeader}>
+                        <Text style={styles.timeLogMins}>{log.duration_minutes} mins</Text>
+                        <Text style={styles.timeLogDate}>
+                          {log.created_at
+                            ? new Date(log.created_at).toLocaleDateString('en-IN', {
+                                month: 'short',
+                                day: 'numeric',
+                              })
+                            : 'Today'}
+                        </Text>
+                      </View>
+                      <Text style={styles.timeLogDesc}>{log.description}</Text>
+                    </View>
+                  ))}
+                </View>
+              ) : (
+                <Text style={styles.emptyNote}>No labor duration logged yet.</Text>
+              )}
+            </View>
+
+            {/* Section 4: Parts, Costs (in ₹ INR) & Completion Summary */}
+            <View style={styles.card}>
+              <Text style={styles.sectionHeader}>FINANCIALS, PARTS & AUDIT SUMMARY (₹ INR)</Text>
+
+              <View style={styles.rowInputs}>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.fieldLabel}>ESTIMATED COST (₹)</Text>
+                  <TextInput
+                    style={styles.textInput}
+                    placeholder="0"
+                    keyboardType="numeric"
+                    value={estimatedCost}
+                    onChangeText={setEstimatedCost}
+                  />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.fieldLabel}>ACTUAL COST (₹)</Text>
+                  <TextInput
+                    style={styles.textInput}
+                    placeholder="0"
+                    keyboardType="numeric"
+                    value={actualCost}
+                    onChangeText={setActualCost}
+                  />
+                </View>
+              </View>
+
+              <Text style={styles.fieldLabel}>WARRANTY STATUS</Text>
+              <View style={styles.warrantyRow}>
+                {(
+                  [
+                    ['under_warranty', 'Under Warranty'],
+                    ['out_of_warranty', 'Out of Warranty'],
+                    ['not_applicable', 'N/A'],
+                  ] as [WarrantyStatus, string][]
+                ).map(([ws, label]) => (
+                  <Pressable
+                    key={ws}
+                    style={[
+                      styles.warrantyChip,
+                      warrantyStatus === ws && styles.warrantyChipSelected,
+                    ]}
+                    onPress={() => setWarrantyStatus(ws)}
+                  >
+                    <Text
+                      style={[
+                        styles.warrantyChipText,
+                        warrantyStatus === ws && styles.warrantyChipTextSelected,
+                      ]}
+                    >
+                      {label}
+                    </Text>
+                  </Pressable>
+                ))}
+              </View>
+
+              <Text style={styles.fieldLabel}>PURCHASE / ASSET INFO</Text>
+              <TextInput
+                style={styles.textInput}
+                placeholder="e.g. Purchased March 2024 (Invoice #8491)"
+                placeholderTextColor={ExecutiveTheme.colors.textMuted}
+                value={purchaseDate}
+                onChangeText={setPurchaseDate}
+              />
+
+              <Text style={styles.fieldLabel}>REPLACEMENT PARTS / WORK PERFORMED</Text>
+              <TextInput
+                style={[styles.textInput, styles.textArea]}
+                placeholder="e.g. Replaced capacitor 45uF, rewired thermal fuse..."
+                placeholderTextColor={ExecutiveTheme.colors.textMuted}
+                value={replacementDetails}
+                onChangeText={setReplacementDetails}
+                multiline
+              />
+
+              {/* Completion Summary with AI */}
+              <View style={styles.summaryHeaderRow}>
+                <Text style={styles.fieldLabel}>COMPLETION SUMMARY</Text>
+                <Pressable
+                  style={({ pressed }) => [styles.aiSmallBtn, pressed && styles.pressed]}
+                  onPress={handleAiGenerateSummary}
+                  disabled={aiGenerating}
+                >
+                  {aiGenerating ? (
+                    <ActivityIndicator size="small" color={ExecutiveTheme.colors.brandDark} />
+                  ) : (
+                    <Text style={styles.aiSmallBtnText}>✨ AI Generate Summary</Text>
+                  )}
+                </Pressable>
+              </View>
+
+              {aiNotice && (
+                <View style={styles.aiNoticeCard}>
+                  <Text style={styles.aiNoticeText}>{aiNotice}</Text>
+                </View>
+              )}
+
+              <TextInput
+                style={[styles.textInput, styles.textArea]}
+                placeholder="Technical summary for the final audit report..."
+                placeholderTextColor={ExecutiveTheme.colors.textMuted}
+                value={completionSummary}
+                onChangeText={(val) => {
+                  setCompletionSummary(val);
+                  setAiNotice(null);
+                }}
+                multiline
+              />
+
+              <Pressable
+                style={({ pressed }) => [styles.saveDetailsBtn, pressed && styles.pressed]}
+                onPress={handleSaveRepairDetails}
+                disabled={submitting}
+              >
+                {submitting ? (
+                  <ActivityIndicator color="#FFFFFF" />
+                ) : (
+                  <Text style={styles.saveDetailsBtnText}>💾 Save Repair Details (₹)</Text>
+                )}
+              </Pressable>
+            </View>
+
+            {/* Section 5: Photos Evidence */}
             <View style={styles.card}>
               <Text style={styles.sectionHeader}>TASK EVIDENCE & PHOTOS</Text>
 
@@ -671,15 +789,15 @@ export default function StaffTaskDetailScreen() {
 
               {/* After Photos */}
               <View style={styles.photoSectionHeader}>
-                <Text style={[styles.photoSubHeader, { color: '#34C759' }]}>
+                <Text style={[styles.photoSubHeader, { color: '#15803D' }]}>
                   After / Completion Photos ({afterPhotos.length})
                 </Text>
                 <Pressable
-                  style={[styles.addPhotoSmallBtn, { backgroundColor: '#EBF9F1' }]}
+                  style={[styles.addPhotoSmallBtn, { backgroundColor: '#F0FDF4', borderColor: '#BBF7D0' }]}
                   onPress={() => handleUploadPhoto('after')}
                   disabled={submitting}
                 >
-                  <Text style={[styles.addPhotoSmallText, { color: '#34C759' }]}>＋ Add After</Text>
+                  <Text style={[styles.addPhotoSmallText, { color: '#15803D' }]}>＋ Add After</Text>
                 </Pressable>
               </View>
               {afterPhotos.length > 0 ? (
@@ -691,176 +809,17 @@ export default function StaffTaskDetailScreen() {
                   ))}
                 </ScrollView>
               ) : (
-                <Text style={styles.emptyNote}>No completion photos uploaded yet.</Text>
+                <Text style={styles.emptyNote}>No completion photos attached.</Text>
               )}
             </View>
 
-            {/* Section 3: Time Logs */}
-            <View style={styles.card}>
-              <View style={styles.rowBetween}>
-                <View>
-                  <Text style={styles.sectionHeader}>LABOR & TIME LOGS</Text>
-                  <Text style={styles.timeSummaryText}>
-                    Total Logged: {Math.floor(totalTimeMinutes / 60)}h {totalTimeMinutes % 60}m
-                  </Text>
-                </View>
-                <Pressable
-                  style={styles.logTimeBtn}
-                  onPress={() => setTimeModalVisible(true)}
-                  disabled={submitting}
-                >
-                  <Text style={styles.logTimeBtnText}>⏱️ Log Time</Text>
-                </Pressable>
-              </View>
-
-              {(task.time_logs || []).length > 0 ? (
-                <View style={styles.timeLogList}>
-                  {task.time_logs?.map((tl) => (
-                    <View key={tl.id} style={styles.timeLogItem}>
-                      <View style={styles.timeLogHeader}>
-                        <Text style={styles.timeLogDuration}>{tl.duration_minutes} mins</Text>
-                        <Text style={styles.timeLogDate}>
-                          {tl.created_at ? new Date(tl.created_at).toLocaleDateString() : ''}
-                        </Text>
-                      </View>
-                      <Text style={styles.timeLogDesc}>{tl.description}</Text>
-                    </View>
-                  ))}
-                </View>
-              ) : (
-                <Text style={styles.emptyNote}>No work time logged yet.</Text>
-              )}
-            </View>
-
-            {/* Section 4: Cost, Warranty & Parts */}
-            <View style={styles.card}>
-              <Text style={styles.sectionHeader}>COST, WARRANTY & PARTS DETAILS</Text>
-
-              <View style={styles.rowInputs}>
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.fieldLabel}>ESTIMATED COST ($)</Text>
-                  <TextInput
-                    style={styles.textInput}
-                    placeholder="0.00"
-                    keyboardType="numeric"
-                    value={estimatedCost}
-                    onChangeText={setEstimatedCost}
-                  />
-                </View>
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.fieldLabel}>ACTUAL COST ($)</Text>
-                  <TextInput
-                    style={styles.textInput}
-                    placeholder="0.00"
-                    keyboardType="numeric"
-                    value={actualCost}
-                    onChangeText={setActualCost}
-                  />
-                </View>
-              </View>
-
-              <Text style={styles.fieldLabel}>WARRANTY STATUS</Text>
-              <View style={styles.warrantyRow}>
-                {(
-                  [
-                    ['under_warranty', 'Under Warranty'],
-                    ['out_of_warranty', 'Out of Warranty'],
-                    ['not_applicable', 'N/A'],
-                  ] as [WarrantyStatus, string][]
-                ).map(([ws, label]) => (
-                  <Pressable
-                    key={ws}
-                    style={[
-                      styles.warrantyChip,
-                      warrantyStatus === ws && styles.warrantyChipSelected,
-                    ]}
-                    onPress={() => setWarrantyStatus(ws)}
-                  >
-                    <Text
-                      style={[
-                        styles.warrantyChipText,
-                        warrantyStatus === ws && styles.warrantyChipTextSelected,
-                      ]}
-                    >
-                      {label}
-                    </Text>
-                  </Pressable>
-                ))}
-              </View>
-
-              <Text style={styles.fieldLabel}>PURCHASE / ASSET INFO</Text>
-              <TextInput
-                style={styles.textInput}
-                placeholder="e.g. Purchased March 2024 (Invoice #8491)"
-                placeholderTextColor="#8E8E93"
-                value={purchaseDate}
-                onChangeText={setPurchaseDate}
-              />
-
-              <Text style={styles.fieldLabel}>REPLACEMENT PARTS / WORK PERFORMED</Text>
-              <TextInput
-                style={[styles.textInput, styles.textArea]}
-                placeholder="e.g. Replaced capacitor 45uF, rewired thermal fuse..."
-                placeholderTextColor="#8E8E93"
-                value={replacementDetails}
-                onChangeText={setReplacementDetails}
-                multiline
-              />
-
-              {/* Completion Summary with AI */}
-              <View style={styles.summaryHeaderRow}>
-                <Text style={styles.fieldLabel}>COMPLETION SUMMARY</Text>
-                <Pressable
-                  style={({ pressed }) => [styles.aiSmallBtn, pressed && styles.pressed]}
-                  onPress={handleAiGenerateSummary}
-                  disabled={aiGenerating}
-                >
-                  {aiGenerating ? (
-                    <ActivityIndicator size="small" color="#AF52DE" />
-                  ) : (
-                    <Text style={styles.aiSmallBtnText}>✨ AI Generate Summary</Text>
-                  )}
-                </Pressable>
-              </View>
-
-              {aiNotice && (
-                <View style={styles.aiNoticeCard}>
-                  <Text style={styles.aiNoticeText}>{aiNotice}</Text>
-                </View>
-              )}
-
-              <TextInput
-                style={[styles.textInput, styles.textArea]}
-                placeholder="Technical summary for the final audit report..."
-                placeholderTextColor="#8E8E93"
-                value={completionSummary}
-                onChangeText={(val) => {
-                  setCompletionSummary(val);
-                  setAiNotice(null);
-                }}
-                multiline
-              />
-
-              <Pressable
-                style={({ pressed }) => [styles.saveDetailsBtn, pressed && styles.pressed]}
-                onPress={handleSaveRepairDetails}
-                disabled={submitting}
-              >
-                {submitting ? (
-                  <ActivityIndicator color="#FFFFFF" />
-                ) : (
-                  <Text style={styles.saveDetailsBtnText}>💾 Save Repair Details</Text>
-                )}
-              </Pressable>
-            </View>
-
-            {/* Section 5: Add Note */}
+            {/* Section 6: Append Note & Audit Trail */}
             <View style={styles.card}>
               <Text style={styles.sectionHeader}>APPEND AUDIT TRAIL NOTE</Text>
               <TextInput
                 style={[styles.textInput, styles.textArea]}
                 placeholder="Write a progress note for the audit history..."
-                placeholderTextColor="#8E8E93"
+                placeholderTextColor={ExecutiveTheme.colors.textMuted}
                 value={noteText}
                 onChangeText={setNoteText}
                 multiline
@@ -874,136 +833,147 @@ export default function StaffTaskDetailScreen() {
                 onPress={handleAddNote}
                 disabled={submitting || !noteText.trim()}
               >
-                <Text style={styles.addNoteBtnText}>Post Note</Text>
+                <Text style={styles.addNoteBtnText}>Post Audit Note</Text>
               </Pressable>
             </View>
 
-            {/* Section 6: Audit Trail */}
             <View style={styles.card}>
               <Text style={styles.sectionHeader}>TIMELINE & AUDIT TRAIL</Text>
               <TimelineView logs={task.timeline_logs || []} />
             </View>
           </View>
         </ScrollView>
-
-        {/* Status Modal */}
-        <Modal visible={statusModalVisible} transparent animationType="slide">
-          <View style={styles.modalBackdrop}>
-            <View style={styles.modalCard}>
-              <View style={styles.modalGrabHandle} />
-              <Text style={styles.modalTitle}>Update Task Status</Text>
-
-              <View style={styles.statusOptions}>
-                {(['assigned', 'in_progress', 'on_hold', 'completed'] as RequestStatus[]).map(
-                  (st) => (
-                    <Pressable
-                      key={st}
-                      style={[
-                        styles.statusOption,
-                        selectedStatus === st && styles.statusOptionSelected,
-                      ]}
-                      onPress={() => setSelectedStatus(st)}
-                    >
-                      <Text
-                        style={[
-                          styles.statusOptionText,
-                          selectedStatus === st && styles.statusOptionTextSelected,
-                        ]}
-                      >
-                        {st.replace(/_/g, ' ').toUpperCase()}
-                      </Text>
-                    </Pressable>
-                  )
-                )}
-              </View>
-
-              <Text style={styles.fieldLabel}>STATUS NOTES (OPTIONAL)</Text>
-              <TextInput
-                style={[styles.textInput, { height: 70 }]}
-                placeholder="e.g. Waiting for spare part delivery..."
-                placeholderTextColor="#8E8E93"
-                value={statusNote}
-                onChangeText={setStatusNote}
-                multiline
-              />
-
-              <View style={styles.modalBtnRow}>
-                <Pressable
-                  style={styles.modalCancelBtn}
-                  onPress={() => setStatusModalVisible(false)}
-                >
-                  <Text style={styles.modalCancelText}>Cancel</Text>
-                </Pressable>
-                <Pressable
-                  style={styles.modalSubmitBtn}
-                  onPress={handleStatusChange}
-                  disabled={submitting}
-                >
-                  <Text style={styles.modalSubmitText}>Save Status</Text>
-                </Pressable>
-              </View>
-            </View>
-          </View>
-        </Modal>
-
-        {/* Time Modal */}
-        <Modal visible={timeModalVisible} transparent animationType="slide">
-          <View style={styles.modalBackdrop}>
-            <View style={styles.modalCard}>
-              <View style={styles.modalGrabHandle} />
-              <Text style={styles.modalTitle}>Log Work Duration</Text>
-
-              <Text style={styles.fieldLabel}>DURATION (MINUTES) *</Text>
-              <TextInput
-                style={styles.textInput}
-                placeholder="e.g. 45"
-                placeholderTextColor="#8E8E93"
-                keyboardType="numeric"
-                value={timeMinutes}
-                onChangeText={setTimeMinutes}
-              />
-
-              <Text style={styles.fieldLabel}>WORK DESCRIPTION *</Text>
-              <TextInput
-                style={[styles.textInput, styles.textArea]}
-                placeholder="e.g. Disassembled pipe, cleared debris, tested valve"
-                placeholderTextColor="#8E8E93"
-                value={timeDescription}
-                onChangeText={setTimeDescription}
-                multiline
-              />
-
-              <View style={styles.modalBtnRow}>
-                <Pressable
-                  style={styles.modalCancelBtn}
-                  onPress={() => setTimeModalVisible(false)}
-                >
-                  <Text style={styles.modalCancelText}>Cancel</Text>
-                </Pressable>
-                <Pressable
-                  style={styles.modalSubmitBtn}
-                  onPress={handleRecordTime}
-                  disabled={submitting}
-                >
-                  <Text style={styles.modalSubmitText}>Record Time</Text>
-                </Pressable>
-              </View>
-            </View>
-          </View>
-        </Modal>
-
-        {/* Fullscreen Photo Modal */}
-        <Modal visible={!!fullscreenPhoto} transparent animationType="fade">
-          <View style={styles.photoModalBackdrop}>
-            <Pressable style={styles.closeModalBtn} onPress={() => setFullscreenPhoto(null)}>
-              <Text style={styles.closeModalText}>✕</Text>
-            </Pressable>
-            {fullscreenPhoto && (
-              <Image source={{ uri: fullscreenPhoto }} style={styles.modalImage} contentFit="contain" />
-            )}
-          </View>
-        </Modal>
       </KeyboardAvoidingView>
+
+      {/* Status Modal */}
+      <Modal visible={statusModalVisible} transparent animationType="slide">
+        <View style={styles.modalBackdrop}>
+          <View style={styles.modalCard}>
+            <View style={styles.modalGrabHandle} />
+            <Text style={styles.modalTitle}>Update Task Status</Text>
+
+            <View style={styles.statusOptions}>
+              {(['assigned', 'in_progress', 'on_hold', 'completed'] as RequestStatus[]).map(
+                (st) => (
+                  <Pressable
+                    key={st}
+                    style={[
+                      styles.statusOption,
+                      selectedStatus === st && styles.statusOptionSelected,
+                    ]}
+                    onPress={() => setSelectedStatus(st)}
+                  >
+                    <Text
+                      style={[
+                        styles.statusOptionText,
+                        selectedStatus === st && styles.statusOptionTextSelected,
+                      ]}
+                    >
+                      {st.replace(/_/g, ' ').toUpperCase()}
+                    </Text>
+                  </Pressable>
+                )
+              )}
+            </View>
+
+            <Text style={styles.fieldLabel}>STATUS NOTES (OPTIONAL)</Text>
+            <TextInput
+              style={[styles.textInput, styles.textArea]}
+              placeholder="e.g. Waiting for replacement capacitor..."
+              placeholderTextColor={ExecutiveTheme.colors.textMuted}
+              value={statusNote}
+              onChangeText={setStatusNote}
+              multiline
+            />
+
+            <View style={styles.modalActions}>
+              <Pressable
+                style={[styles.modalBtn, styles.modalCancelBtn]}
+                onPress={() => setStatusModalVisible(false)}
+              >
+                <Text style={styles.modalCancelText}>Cancel</Text>
+              </Pressable>
+              <Pressable
+                style={[styles.modalBtn, styles.modalSaveBtn]}
+                onPress={handleStatusChange}
+                disabled={submitting}
+              >
+                {submitting ? (
+                  <ActivityIndicator color="#FFFFFF" />
+                ) : (
+                  <Text style={styles.modalSaveText}>Save Status</Text>
+                )}
+              </Pressable>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Time Log Modal */}
+      <Modal visible={timeModalVisible} transparent animationType="slide">
+        <View style={styles.modalBackdrop}>
+          <View style={styles.modalCard}>
+            <View style={styles.modalGrabHandle} />
+            <Text style={styles.modalTitle}>Log Work Duration</Text>
+
+            <Text style={styles.fieldLabel}>DURATION (MINUTES) *</Text>
+            <TextInput
+              style={styles.textInput}
+              placeholder="45"
+              placeholderTextColor={ExecutiveTheme.colors.textMuted}
+              keyboardType="numeric"
+              value={timeMinutes}
+              onChangeText={setTimeMinutes}
+            />
+
+            <Text style={styles.fieldLabel}>WORK DESCRIPTION *</Text>
+            <TextInput
+              style={[styles.textInput, styles.textArea]}
+              placeholder="e.g. Disassembled motor, replaced capacitor, verified voltage."
+              placeholderTextColor={ExecutiveTheme.colors.textMuted}
+              value={timeDescription}
+              onChangeText={setTimeDescription}
+              multiline
+            />
+
+            <View style={styles.modalActions}>
+              <Pressable
+                style={[styles.modalBtn, styles.modalCancelBtn]}
+                onPress={() => setTimeModalVisible(false)}
+              >
+                <Text style={styles.modalCancelText}>Cancel</Text>
+              </Pressable>
+              <Pressable
+                style={[styles.modalBtn, styles.modalSaveBtn]}
+                onPress={handleLogTime}
+                disabled={submitting}
+              >
+                {submitting ? (
+                  <ActivityIndicator color="#FFFFFF" />
+                ) : (
+                  <Text style={styles.modalSaveText}>Record Labor</Text>
+                )}
+              </Pressable>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Fullscreen Photo Viewer */}
+      <Modal visible={!!fullscreenPhoto} transparent animationType="fade">
+        <View style={styles.fullscreenModal}>
+          <Pressable style={styles.closeModalBtn} onPress={() => setFullscreenPhoto(null)}>
+            <Text style={styles.closeModalText}>✕ Close</Text>
+          </Pressable>
+          {fullscreenPhoto && (
+            <Image
+              source={{ uri: fullscreenPhoto }}
+              style={styles.fullscreenImage}
+              contentFit="contain"
+            />
+          )}
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -1011,116 +981,67 @@ export default function StaffTaskDetailScreen() {
 const styles = StyleSheet.create({
   screen: {
     flex: 1,
-    backgroundColor: '#F2F2F7',
-    paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight : 0,
-  },
-  topBar: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    backgroundColor: '#FFFFFF',
-    borderBottomWidth: 0.5,
-    borderBottomColor: '#E5E5EA',
-  },
-  navBackBtn: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
-    backgroundColor: '#F2F2F7',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  navBackText: {
-    fontSize: 24,
-    color: '#007AFF',
-    fontWeight: '600',
-    marginTop: -2,
-  },
-  topBarTitle: {
-    fontSize: 17,
-    fontWeight: '700',
-    color: '#000000',
-    letterSpacing: -0.3,
-    flex: 1,
-    textAlign: 'center',
-    marginHorizontal: 8,
-  },
-  pdfTopBtn: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 16,
-    backgroundColor: '#F2F2F7',
-    borderWidth: 0.5,
-    borderColor: '#E5E5EA',
-  },
-  pdfTopBtnText: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: '#007AFF',
+    backgroundColor: ExecutiveTheme.colors.background,
   },
   scrollContent: {
-    paddingHorizontal: 16,
+    paddingHorizontal: 20,
     paddingVertical: 16,
-    paddingBottom: 40,
+    paddingBottom: 36,
   },
   container: {
     width: '100%',
-    maxWidth: 680,
+    maxWidth: ExecutiveTheme.MaxContentWidth,
     alignSelf: 'center',
     gap: 14,
   },
   card: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 16,
-    padding: 18,
-    borderWidth: 0.5,
-    borderColor: '#E5E5EA',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.04,
-    shadowRadius: 4,
-    elevation: 1,
+    backgroundColor: ExecutiveTheme.colors.surface,
+    borderRadius: 14,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: ExecutiveTheme.colors.border,
+    ...ExecutiveTheme.shadows.soft,
   },
   badgeRow: {
     flexDirection: 'row',
     gap: 8,
-    marginBottom: 10,
+    marginBottom: 8,
   },
   title: {
-    fontSize: 20,
+    fontSize: 18,
     fontWeight: '800',
-    color: '#000000',
-    letterSpacing: -0.4,
+    color: ExecutiveTheme.colors.textPrimary,
+    letterSpacing: -0.3,
     marginBottom: 4,
   },
   descriptionText: {
-    fontSize: 14.5,
-    color: '#3A3A3C',
+    fontSize: 14,
+    color: ExecutiveTheme.colors.textSecondary,
     lineHeight: 20,
   },
   requesterCard: {
-    backgroundColor: '#F2F2F7',
-    borderRadius: 12,
-    padding: 12,
-    marginTop: 12,
+    backgroundColor: ExecutiveTheme.colors.backgroundSubtle,
+    borderRadius: 10,
+    padding: 10,
+    marginTop: 10,
+    borderWidth: 1,
+    borderColor: ExecutiveTheme.colors.border,
   },
   requesterLabel: {
-    fontSize: 10.5,
-    fontWeight: '700',
-    color: '#8E8E93',
+    fontSize: 10,
+    fontWeight: '800',
+    color: ExecutiveTheme.colors.textMuted,
     letterSpacing: 0.4,
-    marginBottom: 2,
   },
   requesterName: {
-    fontSize: 14.5,
-    fontWeight: '700',
-    color: '#000000',
+    fontSize: 14,
+    fontWeight: '800',
+    color: ExecutiveTheme.colors.textPrimary,
+    marginTop: 2,
   },
   requesterEmail: {
-    fontSize: 12,
-    color: '#8E8E93',
+    fontSize: 11.5,
+    color: ExecutiveTheme.colors.textSecondary,
   },
   statusChipsGrid: {
     flexDirection: 'row',
@@ -1132,262 +1053,219 @@ const styles = StyleSheet.create({
   statusQuickChip: {
     flex: 1,
     minWidth: '45%',
-    backgroundColor: '#F2F2F7',
+    backgroundColor: ExecutiveTheme.colors.backgroundSubtle,
     borderRadius: 10,
     paddingVertical: 10,
     paddingHorizontal: 8,
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1,
-    borderColor: '#E5E5EA',
+    borderColor: ExecutiveTheme.colors.border,
   },
   statusQuickChipText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: ExecutiveTheme.colors.textSecondary,
+  },
+  addNoteBtnAlt: {
+    backgroundColor: ExecutiveTheme.colors.backgroundSubtle,
+    borderRadius: 10,
+    paddingVertical: 9,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: ExecutiveTheme.colors.border,
+    marginTop: 4,
+  },
+  addNoteBtnAltText: {
     fontSize: 12.5,
     fontWeight: '700',
-    color: '#636366',
-  },
-  statusActionRow: {
-    flexDirection: 'row',
-    gap: 10,
-    marginTop: 6,
-  },
-  statusChangeBtn: {
-    flex: 1,
-    backgroundColor: '#F2F2F7',
-    paddingVertical: 10,
-    borderRadius: 12,
-    alignItems: 'center',
-    borderWidth: 0.5,
-    borderColor: '#E5E5EA',
-  },
-  statusChangeBtnText: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: '#636366',
-  },
-  completeActionBtn: {
-    flex: 1,
-    backgroundColor: '#34C759',
-    paddingVertical: 12,
-    borderRadius: 12,
-    alignItems: 'center',
-  },
-  completeActionBtnText: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: '#FFFFFF',
+    color: ExecutiveTheme.colors.textPrimary,
   },
   aiTriageCard: {
-    backgroundColor: '#FAF5FF',
-    borderRadius: 16,
+    backgroundColor: ExecutiveTheme.colors.surface,
+    borderRadius: 14,
     padding: 16,
     borderWidth: 1,
-    borderColor: '#E9D5FF',
-    shadowColor: '#AF52DE',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 6,
-    elevation: 2,
+    borderColor: ExecutiveTheme.colors.border,
+    ...ExecutiveTheme.shadows.soft,
   },
   aiTriageHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 10,
-    flexWrap: 'wrap',
-    gap: 8,
+    marginBottom: 8,
   },
   aiTriageBadge: {
-    backgroundColor: '#AF52DE',
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 8,
+    backgroundColor: ExecutiveTheme.colors.brandDark,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 6,
   },
   aiTriageBadgeText: {
     color: '#FFFFFF',
-    fontSize: 11.5,
+    fontSize: 11,
     fontWeight: '800',
-    letterSpacing: 0.2,
   },
   aiCategoryTag: {
-    fontSize: 13,
+    fontSize: 12.5,
     fontWeight: '800',
-    color: '#7E22CE',
+    color: ExecutiveTheme.colors.brandDark,
   },
   aiExplanationText: {
-    fontSize: 13.5,
-    color: '#4C1D95',
-    lineHeight: 19,
-    marginBottom: 12,
+    fontSize: 13,
+    color: ExecutiveTheme.colors.textSecondary,
+    lineHeight: 18,
+    marginBottom: 10,
   },
   aiMetricsRow: {
     flexDirection: 'row',
     gap: 8,
-    marginBottom: 12,
+    marginBottom: 10,
   },
   aiMetricBox: {
     flex: 1,
-    backgroundColor: '#FFFFFF',
-    borderRadius: 10,
-    paddingVertical: 8,
-    paddingHorizontal: 6,
+    backgroundColor: ExecutiveTheme.colors.backgroundSubtle,
+    borderRadius: 8,
+    paddingVertical: 6,
+    paddingHorizontal: 4,
     alignItems: 'center',
-    borderWidth: 0.5,
-    borderColor: '#E9D5FF',
+    borderWidth: 1,
+    borderColor: ExecutiveTheme.colors.border,
   },
   aiMetricLabel: {
-    fontSize: 10,
+    fontSize: 9.5,
     fontWeight: '700',
-    color: '#8E8E93',
+    color: ExecutiveTheme.colors.textMuted,
     textTransform: 'uppercase',
-    marginBottom: 2,
   },
   aiMetricValue: {
-    fontSize: 13,
-    fontWeight: '800',
-    color: '#000000',
-  },
-  aiSafetyBox: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 10,
-    padding: 10,
-    borderWidth: 0.5,
-    borderColor: '#E9D5FF',
-  },
-  aiSafetyTitle: {
-    fontSize: 11.5,
-    fontWeight: '800',
-    color: '#C2410C',
-    marginBottom: 4,
-  },
-  aiSafetyItem: {
     fontSize: 12,
-    color: '#431407',
-    lineHeight: 17,
-  },
-  sectionHeader: {
-    fontSize: 11.5,
-    fontWeight: '700',
-    color: '#8E8E93',
-    letterSpacing: 0.4,
-    marginBottom: 10,
-  },
-  photoSubHeader: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: '#000000',
-    marginTop: 8,
-    marginBottom: 6,
-  },
-  photoSectionHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginTop: 12,
-    marginBottom: 6,
-  },
-  addPhotoSmallBtn: {
-    backgroundColor: '#EBF4FF',
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 12,
-  },
-  addPhotoSmallText: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: '#007AFF',
-  },
-  photoScroll: {
-    marginVertical: 4,
-  },
-  photoThumb: {
-    width: 80,
-    height: 80,
-    borderRadius: 12,
-    marginRight: 10,
-    backgroundColor: '#E5E5EA',
-    borderWidth: 0.5,
-    borderColor: '#D1D1D6',
-  },
-  emptyNote: {
-    fontSize: 13,
-    color: '#8E8E93',
-    fontStyle: 'italic',
-    marginVertical: 4,
-  },
-  rowBetween: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 10,
-  },
-  timeSummaryText: {
-    fontSize: 13,
-    color: '#007AFF',
-    fontWeight: '700',
+    fontWeight: '800',
+    color: ExecutiveTheme.colors.textPrimary,
     marginTop: 2,
   },
-  logTimeBtn: {
-    backgroundColor: '#007AFF',
-    paddingHorizontal: 12,
-    paddingVertical: 7,
-    borderRadius: 12,
+  aiSafetyBox: {
+    backgroundColor: ExecutiveTheme.colors.backgroundSubtle,
+    borderRadius: 8,
+    padding: 10,
+    borderWidth: 1,
+    borderColor: ExecutiveTheme.colors.border,
   },
-  logTimeBtnText: {
+  aiSafetyTitle: {
+    fontSize: 11,
+    fontWeight: '800',
+    color: '#C2410C',
+    marginBottom: 2,
+  },
+  aiSafetyItem: {
+    fontSize: 11.5,
+    color: ExecutiveTheme.colors.textSecondary,
+    lineHeight: 16,
+  },
+  cardHeaderRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  sectionHeader: {
+    fontSize: 11,
+    fontWeight: '800',
+    color: ExecutiveTheme.colors.textSecondary,
+    letterSpacing: 0.5,
+    marginBottom: 8,
+  },
+  actionSmallBtn: {
+    backgroundColor: ExecutiveTheme.colors.brandDark,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 8,
+  },
+  actionSmallBtnText: {
     color: '#FFFFFF',
-    fontSize: 12.5,
+    fontSize: 11.5,
     fontWeight: '700',
   },
-  timeLogList: {
+  timeSummaryCard: {
+    backgroundColor: ExecutiveTheme.colors.backgroundSubtle,
+    borderRadius: 10,
+    padding: 12,
+    alignItems: 'center',
+    marginBottom: 10,
+    borderWidth: 1,
+    borderColor: ExecutiveTheme.colors.border,
+  },
+  timeSummaryNum: {
+    fontSize: 20,
+    fontWeight: '800',
+    color: ExecutiveTheme.colors.brandDark,
+  },
+  timeSummaryLabel: {
+    fontSize: 11,
+    color: ExecutiveTheme.colors.textSecondary,
+    fontWeight: '600',
+    marginTop: 2,
+  },
+  timeLogsList: {
     gap: 8,
   },
   timeLogItem: {
-    backgroundColor: '#F2F2F7',
-    borderRadius: 10,
+    backgroundColor: ExecutiveTheme.colors.backgroundSubtle,
+    borderRadius: 8,
     padding: 10,
+    borderWidth: 1,
+    borderColor: ExecutiveTheme.colors.border,
   },
   timeLogHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginBottom: 4,
   },
-  timeLogDuration: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: '#000000',
+  timeLogMins: {
+    fontSize: 12.5,
+    fontWeight: '800',
+    color: ExecutiveTheme.colors.brandDark,
   },
   timeLogDate: {
-    fontSize: 11.5,
-    color: '#8E8E93',
+    fontSize: 11,
+    color: ExecutiveTheme.colors.textMuted,
   },
   timeLogDesc: {
-    fontSize: 12.5,
-    color: '#3A3A3C',
+    fontSize: 12,
+    color: ExecutiveTheme.colors.textSecondary,
+    marginTop: 4,
+  },
+  emptyNote: {
+    fontSize: 12,
+    color: ExecutiveTheme.colors.textMuted,
+    fontStyle: 'italic',
   },
   rowInputs: {
     flexDirection: 'row',
-    gap: 12,
+    gap: 10,
   },
   fieldLabel: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: '#8E8E93',
-    letterSpacing: 0.3,
-    marginTop: 10,
-    marginBottom: 6,
+    fontSize: 10.5,
+    fontWeight: '800',
+    color: ExecutiveTheme.colors.textSecondary,
+    letterSpacing: 0.4,
+    marginTop: 8,
+    marginBottom: 4,
   },
   textInput: {
-    backgroundColor: '#F2F2F7',
-    borderRadius: 12,
+    backgroundColor: ExecutiveTheme.colors.backgroundSubtle,
+    borderRadius: 10,
     paddingHorizontal: 12,
     height: 44,
     fontSize: 14,
-    color: '#000000',
+    color: ExecutiveTheme.colors.textPrimary,
     fontWeight: '500',
+    borderWidth: 1,
+    borderColor: ExecutiveTheme.colors.border,
   },
   textArea: {
     height: 80,
     paddingTop: 10,
+    textAlignVertical: 'top',
   },
   warrantyRow: {
     flexDirection: 'row',
@@ -1396,17 +1274,20 @@ const styles = StyleSheet.create({
   warrantyChip: {
     flex: 1,
     paddingVertical: 8,
-    backgroundColor: '#F2F2F7',
-    borderRadius: 10,
+    backgroundColor: ExecutiveTheme.colors.backgroundSubtle,
+    borderRadius: 8,
     alignItems: 'center',
+    borderWidth: 1,
+    borderColor: ExecutiveTheme.colors.border,
   },
   warrantyChipSelected: {
-    backgroundColor: '#007AFF',
+    backgroundColor: ExecutiveTheme.colors.brandDark,
+    borderColor: ExecutiveTheme.colors.brandDark,
   },
   warrantyChipText: {
-    fontSize: 11.5,
+    fontSize: 11,
     fontWeight: '700',
-    color: '#8E8E93',
+    color: ExecutiveTheme.colors.textSecondary,
   },
   warrantyChipTextSelected: {
     color: '#FFFFFF',
@@ -1415,85 +1296,131 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginTop: 10,
+    marginTop: 8,
   },
   aiSmallBtn: {
-    backgroundColor: '#FAF5FF',
+    backgroundColor: ExecutiveTheme.colors.backgroundSubtle,
     paddingHorizontal: 10,
     paddingVertical: 4,
-    borderRadius: 12,
-    borderWidth: 0.5,
-    borderColor: '#E9D5FF',
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: ExecutiveTheme.colors.border,
   },
   aiSmallBtnText: {
     fontSize: 11.5,
     fontWeight: '700',
-    color: '#AF52DE',
+    color: ExecutiveTheme.colors.brandDark,
   },
   aiNoticeCard: {
-    backgroundColor: '#F5EEFB',
-    borderRadius: 10,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    marginTop: 8,
-    borderWidth: 0.5,
-    borderColor: '#E9D5FF',
+    backgroundColor: '#F0FDF4',
+    borderRadius: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    marginTop: 6,
+    borderWidth: 0.8,
+    borderColor: '#BBF7D0',
   },
   aiNoticeText: {
-    fontSize: 12,
+    fontSize: 11.5,
     fontWeight: '700',
-    color: '#7E22CE',
-    lineHeight: 16,
+    color: '#15803D',
   },
   saveDetailsBtn: {
-    backgroundColor: '#007AFF',
+    backgroundColor: ExecutiveTheme.colors.brandDark,
     borderRadius: 12,
     paddingVertical: 12,
     alignItems: 'center',
-    marginTop: 12,
+    marginTop: 10,
   },
   saveDetailsBtnText: {
     color: '#FFFFFF',
     fontSize: 14,
+    fontWeight: '800',
+  },
+  photoSectionHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginTop: 10,
+    marginBottom: 4,
+  },
+  photoSubHeader: {
+    fontSize: 11,
+    fontWeight: '800',
+    color: ExecutiveTheme.colors.textSecondary,
+  },
+  addPhotoSmallBtn: {
+    backgroundColor: ExecutiveTheme.colors.backgroundSubtle,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: ExecutiveTheme.colors.border,
+  },
+  addPhotoSmallText: {
+    fontSize: 11,
     fontWeight: '700',
+    color: ExecutiveTheme.colors.textPrimary,
+  },
+  photoScroll: {
+    marginTop: 4,
+  },
+  photoThumb: {
+    width: 68,
+    height: 68,
+    borderRadius: 8,
+    marginRight: 8,
+    borderWidth: 1,
+    borderColor: ExecutiveTheme.colors.border,
   },
   addNoteBtn: {
-    backgroundColor: '#007AFF',
-    borderRadius: 12,
+    backgroundColor: ExecutiveTheme.colors.brandDark,
+    borderRadius: 10,
     paddingVertical: 10,
     alignItems: 'center',
     marginTop: 8,
   },
   addNoteBtnText: {
     color: '#FFFFFF',
-    fontSize: 13.5,
+    fontSize: 13,
+    fontWeight: '800',
+  },
+  pdfTopBtn: {
+    backgroundColor: ExecutiveTheme.colors.brandDark,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 8,
+  },
+  pdfTopBtnText: {
+    fontSize: 11.5,
     fontWeight: '700',
+    color: '#FFFFFF',
   },
   modalBackdrop: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.45)',
+    backgroundColor: 'rgba(30, 27, 75, 0.45)',
     justifyContent: 'flex-end',
   },
   modalCard: {
-    backgroundColor: '#FFFFFF',
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
+    backgroundColor: ExecutiveTheme.colors.surface,
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
     padding: 20,
     paddingBottom: 36,
   },
   modalGrabHandle: {
     width: 36,
-    height: 5,
-    borderRadius: 2.5,
-    backgroundColor: '#D1D1D6',
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: ExecutiveTheme.colors.border,
     alignSelf: 'center',
-    marginBottom: 14,
+    marginBottom: 12,
   },
   modalTitle: {
-    fontSize: 18,
+    fontSize: 17,
     fontWeight: '800',
-    color: '#000000',
-    marginBottom: 14,
+    color: ExecutiveTheme.colors.textPrimary,
+    marginBottom: 12,
   },
   statusOptions: {
     flexDirection: 'row',
@@ -1502,102 +1429,101 @@ const styles = StyleSheet.create({
     marginBottom: 10,
   },
   statusOption: {
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    borderRadius: 10,
-    backgroundColor: '#F2F2F7',
+    flex: 1,
+    minWidth: '45%',
+    backgroundColor: ExecutiveTheme.colors.backgroundSubtle,
+    borderRadius: 8,
+    paddingVertical: 10,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: ExecutiveTheme.colors.border,
   },
   statusOptionSelected: {
-    backgroundColor: '#007AFF',
+    backgroundColor: ExecutiveTheme.colors.brandDark,
+    borderColor: ExecutiveTheme.colors.brandDark,
   },
   statusOptionText: {
     fontSize: 12,
     fontWeight: '700',
-    color: '#8E8E93',
+    color: ExecutiveTheme.colors.textSecondary,
   },
   statusOptionTextSelected: {
     color: '#FFFFFF',
   },
-  modalBtnRow: {
+  modalActions: {
     flexDirection: 'row',
     gap: 10,
-    marginTop: 16,
+    marginTop: 14,
+  },
+  modalBtn: {
+    flex: 1,
+    paddingVertical: 12,
+    borderRadius: 10,
+    alignItems: 'center',
   },
   modalCancelBtn: {
-    flex: 1,
-    paddingVertical: 12,
-    borderRadius: 12,
-    backgroundColor: '#F2F2F7',
-    alignItems: 'center',
+    backgroundColor: ExecutiveTheme.colors.backgroundSubtle,
+    borderWidth: 1,
+    borderColor: ExecutiveTheme.colors.border,
   },
   modalCancelText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#8E8E93',
-  },
-  modalSubmitBtn: {
-    flex: 1,
-    paddingVertical: 12,
-    borderRadius: 12,
-    backgroundColor: '#007AFF',
-    alignItems: 'center',
-  },
-  modalSubmitText: {
-    fontSize: 14,
+    fontSize: 13.5,
     fontWeight: '700',
+    color: ExecutiveTheme.colors.textSecondary,
+  },
+  modalSaveBtn: {
+    backgroundColor: ExecutiveTheme.colors.brandDark,
+  },
+  modalSaveText: {
+    fontSize: 13.5,
+    fontWeight: '800',
     color: '#FFFFFF',
   },
-  photoModalBackdrop: {
+  fullscreenModal: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.92)',
     justifyContent: 'center',
     alignItems: 'center',
-    padding: 16,
+  },
+  fullscreenImage: {
+    width: '90%',
+    height: '80%',
   },
   closeModalBtn: {
     position: 'absolute',
     top: 50,
     right: 20,
-    width: 36,
-    height: 36,
-    borderRadius: 18,
     backgroundColor: 'rgba(255,255,255,0.2)',
-    alignItems: 'center',
-    justifyContent: 'center',
-    zIndex: 10,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 20,
+    zIndex: 20,
   },
   closeModalText: {
     color: '#FFFFFF',
-    fontSize: 16,
+    fontSize: 13,
     fontWeight: '700',
-  },
-  modalImage: {
-    width: '100%',
-    height: '80%',
   },
   centerContainer: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    padding: 32,
-    backgroundColor: '#F2F2F7',
+    paddingVertical: 60,
   },
   loadingText: {
+    fontSize: 13,
+    color: ExecutiveTheme.colors.textSecondary,
     marginTop: 10,
-    fontSize: 13.5,
-    color: '#8E8E93',
-    fontWeight: '500',
   },
   notFoundText: {
-    fontSize: 17,
-    fontWeight: '700',
-    color: '#000000',
-    marginBottom: 12,
+    fontSize: 14,
+    color: ExecutiveTheme.colors.textSecondary,
+    fontWeight: '600',
   },
   btnDisabled: {
-    opacity: 0.5,
+    backgroundColor: '#94A3B8',
   },
   pressed: {
-    opacity: 0.85,
+    opacity: 0.75,
   },
 });

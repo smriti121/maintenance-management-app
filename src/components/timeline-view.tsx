@@ -1,5 +1,7 @@
 import React from 'react';
 import { StyleSheet, Text, View } from 'react-native';
+
+import { ExecutiveTheme } from '@/constants/theme';
 import { TimelineLog } from '@/types/maintenance';
 
 interface TimelineViewProps {
@@ -213,28 +215,28 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   actionTitle: {
-    fontSize: 15,
+    fontSize: 14.5,
     fontWeight: '700',
-    color: '#111827',
+    color: ExecutiveTheme.colors.textPrimary,
   },
   timestamp: {
-    fontSize: 12,
-    color: '#9CA3AF',
+    fontSize: 11.5,
+    color: ExecutiveTheme.colors.textMuted,
   },
   notesText: {
-    fontSize: 14,
-    lineHeight: 20,
-    color: '#4B5563',
-    backgroundColor: '#F9FAFB',
+    fontSize: 13,
+    lineHeight: 19,
+    color: ExecutiveTheme.colors.textSecondary,
+    backgroundColor: ExecutiveTheme.colors.backgroundSubtle,
     padding: 10,
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: '#E5E7EB',
+    borderColor: ExecutiveTheme.colors.border,
     marginTop: 4,
   },
   actorText: {
-    fontSize: 12,
-    color: '#6B7280',
+    fontSize: 11.5,
+    color: ExecutiveTheme.colors.textSecondary,
     marginTop: 4,
     fontStyle: 'italic',
   },

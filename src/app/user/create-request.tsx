@@ -1,7 +1,7 @@
 import { Image } from 'expo-image';
 import * as ImagePicker from 'expo-image-picker';
-import { router } from 'expo-router';
-import React, { useState } from 'react';
+import { router, useLocalSearchParams } from 'expo-router';
+import React, { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   KeyboardAvoidingView,
@@ -15,6 +15,9 @@ import {
   View,
 } from 'react-native';
 
+import { AppBottomNav } from '@/components/app-bottom-nav';
+import { ExecutiveHeader } from '@/components/executive-header';
+import { ExecutiveTheme } from '@/constants/theme';
 import { supabase } from '@/lib/supabase';
 import { AiService, AiTriageResult } from '@/services/ai-service';
 import { MaintenanceService, SelectedPhotoInput } from '@/services/maintenance-service';
@@ -22,13 +25,64 @@ import { Priority } from '@/types/maintenance';
 import { showAlert } from '@/utils/alert';
 
 export default function CreateRequestScreen() {
-  const [title, setTitle] = useState('');
+  const params = useLocalSearchParams<{ initialTitle?: string }>();
+  const [title, setTitle] = useState(params.initialTitle || '');
   const [description, setDescription] = useState('');
   const [priority, setPriority] = useState<Priority>('medium');
   const [photos, setPhotos] = useState<SelectedPhotoInput[]>([]);
   const [aiAnalyzing, setAiAnalyzing] = useState(false);
   const [aiResult, setAiResult] = useState<AiTriageResult | null>(null);
   const [submitting, setSubmitting] = useState(false);
+
+  useEffect(() => {
+    if (params.initialTitle) {
+      setTitle(params.initialTitle);
+    }
+  }, [params.initialTitle]);
+
+  const presetIssues = [
+    {
+      label: '💨 Fan not working',
+      title: 'Ceiling Fan Not Working',
+      desc: 'Ceiling fan is not rotating / making grinding noise. Requires inspection of regulator and motor.',
+      priority: 'medium' as Priority,
+    },
+    {
+      label: '💡 Bulb not working',
+      title: 'Bulb / Lighting Fixture Issue',
+      desc: 'Light bulb has fused and needs replacement. Fixture power supply needs checking.',
+      priority: 'low' as Priority,
+    },
+    {
+      label: '❄️ AC issue',
+      title: 'Air Conditioner Cooling Issue',
+      desc: 'AC is not cooling effectively / blowing warm air. Filters and gas pressure need inspection.',
+      priority: 'high' as Priority,
+    },
+    {
+      label: '🚰 Plumbing issue',
+      title: 'Plumbing & Tap Leakage',
+      desc: 'Continuous water leakage observed from bathroom/kitchen pipeline. Requires valve and joint sealing.',
+      priority: 'high' as Priority,
+    },
+    {
+      label: '⚡ Electrical issue',
+      title: 'Electrical Switch / Power Issue',
+      desc: 'Power socket is sparking / unresponsive. Circuit breaker trips when appliance is connected.',
+      priority: 'urgent' as Priority,
+    },
+  ];
+
+  function handleSelectPreset(preset: (typeof presetIssues)[0]) {
+    setTitle(preset.title);
+    setDescription(preset.desc);
+    setPriority(preset.priority);
+
+    // Auto trigger AI triage
+    AiService.analyzeIssue(preset.title, preset.desc)
+      .then((res) => setAiResult(res))
+      .catch((err) => console.warn('AI Triage error:', err));
+  }
 
   // 1. Smart AI Triage Analysis
   async function handleAiTriage() {
@@ -40,7 +94,6 @@ export default function CreateRequestScreen() {
     setAiAnalyzing(true);
     try {
       const result = await AiService.analyzeIssue(title, description);
-
       setAiResult(result);
       if (result.recommendedPriority) {
         setPriority(result.recommendedPriority);
@@ -87,6 +140,40 @@ export default function CreateRequestScreen() {
     } catch (err: any) {
       console.error('Error picking photos:', err);
       showAlert('Photo Notice', 'Could not access photos: ' + (err?.message || 'Unknown issue.'));
+    }
+  }
+
+  async function takePhoto() {
+    try {
+      const { status } = await ImagePicker.requestCameraPermissionsAsync();
+      if (status !== 'granted') {
+        showAlert('Camera Permission Required', 'FixFlow requires camera access to take evidence photos.');
+        return;
+      }
+
+      const result = await ImagePicker.launchCameraAsync({
+        quality: 0.7,
+        base64: true,
+      });
+
+      if (!result.canceled && result.assets && result.assets[0]) {
+        const asset = result.assets[0];
+        let uri = asset.uri;
+        if (asset.base64) {
+          const mime = asset.mimeType || 'image/jpeg';
+          uri = `data:${mime};base64,${asset.base64}`;
+        }
+        setPhotos((prev) => [
+          ...prev,
+          {
+            uri,
+            name: asset.fileName || `camera-photo-${Date.now()}.jpg`,
+            mimeType: asset.mimeType || 'image/jpeg',
+          },
+        ]);
+      }
+    } catch (err: any) {
+      console.error('Camera error:', err);
     }
   }
 
@@ -141,118 +228,80 @@ export default function CreateRequestScreen() {
 
   return (
     <SafeAreaView style={styles.screen}>
+      <ExecutiveHeader
+        title="New Maintenance Request"
+        subtitle="Commercial Facility Dispatch"
+        showBack={true}
+        fallbackRoute="/user/dashboard"
+      />
+
       <KeyboardAvoidingView
         style={{ flex: 1 }}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
-        {/* iOS Navigation Bar */}
-        <View style={styles.navBar}>
-          <Pressable onPress={() => router.back()} style={styles.navBackBtn}>
-            <Text style={styles.navBackText}>‹</Text>
-          </Pressable>
-          <Text style={styles.navBarTitle}>New Request</Text>
-          <View style={{ width: 40 }} />
-        </View>
-
         <ScrollView
           contentContainerStyle={styles.scrollContent}
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
           <View style={styles.container}>
-            {/* Section 1: Issue Info Card */}
+            {/* Quick Issue Selector Chips */}
             <View style={styles.card}>
-              <Text style={styles.sectionHeader}>ISSUE DETAILS</Text>
+              <Text style={styles.sectionHeader}>QUICK SELECT COMMON ISSUE</Text>
+              <View style={styles.presetGrid}>
+                {presetIssues.map((preset, idx) => (
+                  <Pressable
+                    key={idx}
+                    style={({ pressed }) => [styles.presetChip, pressed && styles.pressed]}
+                    onPress={() => handleSelectPreset(preset)}
+                  >
+                    <Text style={styles.presetChipText}>{preset.label}</Text>
+                  </Pressable>
+                ))}
+              </View>
+            </View>
 
-              <Text style={styles.inputLabel}>ISSUE TITLE *</Text>
+            {/* Issue Information Card */}
+            <View style={styles.card}>
+              <Text style={styles.sectionHeader}>MAINTENANCE WORK SCOPE</Text>
+
+              <Text style={styles.fieldLabel}>ISSUE TITLE *</Text>
               <TextInput
-                style={styles.input}
-                placeholder="e.g. Leaking pipe under kitchen sink"
-                placeholderTextColor="#8E8E93"
+                style={styles.textInput}
+                placeholder="e.g. Ceiling Fan Not Working"
+                placeholderTextColor={ExecutiveTheme.colors.textMuted}
                 value={title}
                 onChangeText={setTitle}
-                maxLength={100}
               />
 
-              <Text style={styles.inputLabel}>DETAILED DESCRIPTION *</Text>
+              <Text style={styles.fieldLabel}>DETAILED DESCRIPTION *</Text>
               <TextInput
-                style={[styles.input, styles.textArea]}
-                placeholder="Describe what happened, where it is located, and any damage noticed..."
-                placeholderTextColor="#8E8E93"
+                style={[styles.textInput, styles.textArea]}
+                placeholder="Describe the issue, location in apartment, and when it started..."
+                placeholderTextColor={ExecutiveTheme.colors.textMuted}
                 value={description}
                 onChangeText={setDescription}
                 multiline
-                numberOfLines={4}
-                textAlignVertical="top"
               />
 
-              {/* Smart AI Triage Button */}
-              <Pressable
-                style={({ pressed }) => [styles.aiBtn, pressed && styles.pressed]}
-                onPress={handleAiTriage}
-                disabled={aiAnalyzing}
-              >
-                {aiAnalyzing ? (
-                  <ActivityIndicator size="small" color="#AF52DE" />
-                ) : (
-                  <>
-                    <Text style={styles.aiBtnIcon}>✨</Text>
-                    <Text style={styles.aiBtnText}>Run Smart AI Diagnosis</Text>
-                  </>
-                )}
-              </Pressable>
-
-              {/* AI Diagnosis Result Card */}
-              {aiResult && (
-                <View style={styles.aiResultCard}>
-                  <View style={styles.aiResultHeader}>
-                    <Text style={styles.aiBadge}>AI ANALYSIS</Text>
-                    <Text style={styles.aiCategory}>{aiResult.category}</Text>
-                  </View>
-
-                  <Text style={styles.aiExplanation}>{aiResult.explanation}</Text>
-
-                  {aiResult.safetyAdvice && aiResult.safetyAdvice.length > 0 && (
-                    <View style={styles.aiSafetyBox}>
-                      {aiResult.safetyAdvice.map((advice, i) => (
-                        <Text key={i} style={styles.aiSafetyText}>⚠️ {advice}</Text>
-                      ))}
-                    </View>
-                  )}
-
-                  <View style={styles.aiMetaRow}>
-                    <Text style={styles.aiMetaText}>
-                      Est. Cost: <Text style={{ fontWeight: '700' }}>{aiResult.estimatedCostRange}</Text>
-                    </Text>
-                    <Text style={styles.aiMetaText}>
-                      Rec. Priority: <Text style={{ fontWeight: '700', textTransform: 'uppercase' }}>{aiResult.recommendedPriority}</Text>
-                    </Text>
-                  </View>
-                </View>
-              )}
-            </View>
-
-            {/* Section 2: Priority Picker Card */}
-            <View style={styles.card}>
-              <Text style={styles.sectionHeader}>PRIORITY LEVEL</Text>
-              <View style={styles.priorityGrid}>
+              {/* Priority Selector */}
+              <Text style={styles.fieldLabel}>PRIORITY LEVEL</Text>
+              <View style={styles.priorityRow}>
                 {(['low', 'medium', 'high', 'urgent'] as Priority[]).map((p) => {
                   const isSelected = priority === p;
                   return (
                     <Pressable
                       key={p}
                       style={[
-                        styles.priorityOption,
-                        isSelected && styles.priorityOptionActive,
-                        isSelected && p === 'urgent' && styles.priorityUrgentActive,
-                        isSelected && p === 'high' && styles.priorityHighActive,
+                        styles.priorityChip,
+                        isSelected && styles.priorityChipSelected,
                       ]}
                       onPress={() => setPriority(p)}
                     >
                       <Text
                         style={[
-                          styles.priorityText,
-                          isSelected && styles.priorityTextActive,
+                          styles.priorityChipText,
+                          isSelected && styles.priorityChipTextSelected,
                         ]}
                       >
                         {p.toUpperCase()}
@@ -263,34 +312,72 @@ export default function CreateRequestScreen() {
               </View>
             </View>
 
-            {/* Section 3: Photo Uploads Card */}
+            {/* AI Smart Triage Assistant */}
             <View style={styles.card}>
-              <View style={styles.photoHeaderRow}>
-                <Text style={styles.sectionHeader}>ATTACH PHOTOS ({photos.length})</Text>
-                <Pressable style={styles.addPhotoSmallBtn} onPress={pickPhotos}>
-                  <Text style={styles.addPhotoSmallText}>＋ Add Photos</Text>
+              <View style={styles.aiHeaderRow}>
+                <Text style={styles.sectionHeader}>AI SMART TRIAGE ASSISTANT</Text>
+                <Pressable
+                  style={({ pressed }) => [styles.aiBtn, pressed && styles.pressed]}
+                  onPress={handleAiTriage}
+                  disabled={aiAnalyzing}
+                >
+                  {aiAnalyzing ? (
+                    <ActivityIndicator size="small" color={ExecutiveTheme.colors.brandDark} />
+                  ) : (
+                    <Text style={styles.aiBtnText}>✨ Analyze Issue</Text>
+                  )}
                 </Pressable>
               </View>
 
-              {photos.length > 0 ? (
-                <View style={styles.photoGrid}>
+              {aiResult ? (
+                <View style={styles.aiResultCard}>
+                  <View style={styles.aiResultHeader}>
+                    <Text style={styles.aiCategory}>{aiResult.category}</Text>
+                    <Text style={styles.aiDuration}>⏳ {aiResult.estimatedDuration}</Text>
+                  </View>
+                  <Text style={styles.aiExplanation}>{aiResult.explanation}</Text>
+                  <View style={styles.aiBenchmarkRow}>
+                    <Text style={styles.aiBenchmarkLabel}>Estimated Cost Range (₹):</Text>
+                    <Text style={styles.aiBenchmarkValue}>{aiResult.estimatedCostRange}</Text>
+                  </View>
+                </View>
+              ) : (
+                <Text style={styles.aiPromptText}>
+                  Tap "Analyze Issue" to automatically predict trade category, priority, and estimated repair cost benchmark in ₹ INR.
+                </Text>
+              )}
+            </View>
+
+            {/* Photo Evidence Card */}
+            <View style={styles.card}>
+              <Text style={styles.sectionHeader}>EVIDENCE & PHOTOS ({photos.length})</Text>
+
+              <View style={styles.photoActionsRow}>
+                <Pressable
+                  style={({ pressed }) => [styles.photoActionBtn, pressed && styles.pressed]}
+                  onPress={pickPhotos}
+                >
+                  <Text style={styles.photoActionBtnText}>🖼️ Upload Photos</Text>
+                </Pressable>
+                <Pressable
+                  style={({ pressed }) => [styles.photoActionBtn, pressed && styles.pressed]}
+                  onPress={takePhoto}
+                >
+                  <Text style={styles.photoActionBtnText}>📷 Open Camera</Text>
+                </Pressable>
+              </View>
+
+              {photos.length > 0 && (
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.photoScroll}>
                   {photos.map((p, idx) => (
-                    <View key={idx} style={styles.photoWrapper}>
+                    <View key={idx} style={styles.photoThumbContainer}>
                       <Image source={{ uri: p.uri }} style={styles.photoThumb} contentFit="cover" />
                       <Pressable style={styles.removePhotoBtn} onPress={() => removePhoto(idx)}>
                         <Text style={styles.removePhotoText}>✕</Text>
                       </Pressable>
                     </View>
                   ))}
-                </View>
-              ) : (
-                <Pressable style={styles.emptyPhotoBox} onPress={pickPhotos}>
-                  <Text style={styles.emptyPhotoIcon}>📷</Text>
-                  <Text style={styles.emptyPhotoTitle}>Attach Photos</Text>
-                  <Text style={styles.emptyPhotoSub}>
-                    Tap to upload photos of the issue for faster diagnosis
-                  </Text>
-                </Pressable>
+                </ScrollView>
               )}
             </View>
 
@@ -307,12 +394,15 @@ export default function CreateRequestScreen() {
               {submitting ? (
                 <ActivityIndicator color="#FFFFFF" />
               ) : (
-                <Text style={styles.submitBtnText}>Submit Maintenance Request</Text>
+                <Text style={styles.submitBtnText}>🚀 Submit Maintenance Work Order</Text>
               )}
             </Pressable>
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
+
+      {/* 4-Tab Bottom Navigation */}
+      <AppBottomNav activeTab="create" role="user" />
     </SafeAreaView>
   );
 }
@@ -320,288 +410,241 @@ export default function CreateRequestScreen() {
 const styles = StyleSheet.create({
   screen: {
     flex: 1,
-    backgroundColor: '#F2F2F7',
-  },
-  navBar: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    backgroundColor: '#FFFFFF',
-    borderBottomWidth: 0.5,
-    borderBottomColor: '#E5E5EA',
-  },
-  navBackBtn: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: '#F2F2F7',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  navBackText: {
-    fontSize: 24,
-    color: '#007AFF',
-    fontWeight: '600',
-    marginTop: -2,
-  },
-  navBarTitle: {
-    fontSize: 17,
-    fontWeight: '700',
-    color: '#000000',
-    letterSpacing: -0.3,
+    backgroundColor: ExecutiveTheme.colors.background,
   },
   scrollContent: {
     paddingHorizontal: 16,
-    paddingVertical: 16,
-    paddingBottom: 40,
+    paddingVertical: 14,
+    paddingBottom: 32,
   },
   container: {
     width: '100%',
-    maxWidth: 680,
+    maxWidth: ExecutiveTheme.MaxContentWidth,
     alignSelf: 'center',
     gap: 14,
   },
   card: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 16,
-    padding: 18,
-    borderWidth: 0.5,
-    borderColor: '#E5E5EA',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.04,
-    shadowRadius: 4,
-    elevation: 1,
+    backgroundColor: ExecutiveTheme.colors.surface,
+    borderRadius: 14,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: ExecutiveTheme.colors.border,
+    ...ExecutiveTheme.shadows.soft,
   },
   sectionHeader: {
-    fontSize: 11.5,
-    fontWeight: '700',
-    color: '#8E8E93',
-    letterSpacing: 0.4,
-    marginBottom: 8,
+    fontSize: 11,
+    fontWeight: '800',
+    color: ExecutiveTheme.colors.textSecondary,
+    letterSpacing: 0.5,
+    marginBottom: 10,
   },
-  inputLabel: {
-    fontSize: 11.5,
+  presetGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  presetChip: {
+    backgroundColor: ExecutiveTheme.colors.backgroundSubtle,
+    borderRadius: 20,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderWidth: 1,
+    borderColor: ExecutiveTheme.colors.border,
+  },
+  presetChipText: {
+    fontSize: 12,
     fontWeight: '700',
-    color: '#8E8E93',
-    marginTop: 8,
+    color: ExecutiveTheme.colors.textPrimary,
+  },
+  fieldLabel: {
+    fontSize: 10.5,
+    fontWeight: '800',
+    color: ExecutiveTheme.colors.textSecondary,
+    letterSpacing: 0.4,
+    marginTop: 10,
     marginBottom: 6,
   },
-  input: {
-    backgroundColor: '#F2F2F7',
-    borderRadius: 12,
-    paddingHorizontal: 14,
-    height: 46,
-    fontSize: 15,
-    color: '#000000',
+  textInput: {
+    backgroundColor: ExecutiveTheme.colors.backgroundSubtle,
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    height: 44,
+    fontSize: 14,
+    color: ExecutiveTheme.colors.textPrimary,
     fontWeight: '500',
+    borderWidth: 1,
+    borderColor: ExecutiveTheme.colors.border,
   },
   textArea: {
-    height: 100,
-    paddingTop: 12,
+    height: 90,
+    paddingTop: 10,
+    textAlignVertical: 'top',
+  },
+  priorityRow: {
+    flexDirection: 'row',
+    gap: 8,
+    marginTop: 2,
+  },
+  priorityChip: {
+    flex: 1,
+    paddingVertical: 9,
+    backgroundColor: ExecutiveTheme.colors.backgroundSubtle,
+    borderRadius: 10,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: ExecutiveTheme.colors.border,
+  },
+  priorityChipSelected: {
+    backgroundColor: ExecutiveTheme.colors.brandDark,
+    borderColor: ExecutiveTheme.colors.brandDark,
+  },
+  priorityChipText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: ExecutiveTheme.colors.textSecondary,
+  },
+  priorityChipTextSelected: {
+    color: '#FFFFFF',
+    fontWeight: '800',
+  },
+  aiHeaderRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
   },
   aiBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 6,
-    backgroundColor: '#FBF5FF',
+    backgroundColor: ExecutiveTheme.colors.backgroundSubtle,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 8,
     borderWidth: 1,
-    borderColor: '#E9D5FF',
-    borderRadius: 12,
-    paddingVertical: 11,
-    marginTop: 14,
-  },
-  aiBtnIcon: {
-    fontSize: 16,
+    borderColor: ExecutiveTheme.colors.border,
   },
   aiBtnText: {
-    fontSize: 14,
+    fontSize: 11.5,
     fontWeight: '700',
-    color: '#AF52DE',
+    color: ExecutiveTheme.colors.brandDark,
   },
   aiResultCard: {
-    marginTop: 12,
-    backgroundColor: '#FAF5FF',
-    borderRadius: 14,
-    padding: 14,
+    backgroundColor: ExecutiveTheme.colors.backgroundSubtle,
+    borderRadius: 10,
+    padding: 12,
+    marginTop: 8,
     borderWidth: 1,
-    borderColor: '#E9D5FF',
+    borderColor: ExecutiveTheme.colors.border,
   },
   aiResultHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 6,
-  },
-  aiBadge: {
-    fontSize: 10,
-    fontWeight: '800',
-    color: '#AF52DE',
-    letterSpacing: 0.5,
+    marginBottom: 4,
   },
   aiCategory: {
+    fontSize: 13,
+    fontWeight: '800',
+    color: ExecutiveTheme.colors.textPrimary,
+  },
+  aiDuration: {
     fontSize: 12,
     fontWeight: '700',
-    color: '#6B21A8',
-    backgroundColor: '#F3E8FF',
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: 6,
+    color: ExecutiveTheme.colors.textSecondary,
   },
   aiExplanation: {
-    fontSize: 13,
-    color: '#4C1D95',
-    lineHeight: 18,
-    marginBottom: 8,
+    fontSize: 12.5,
+    color: ExecutiveTheme.colors.textSecondary,
+    lineHeight: 17,
+    marginVertical: 4,
   },
-  aiSafetyBox: {
-    backgroundColor: '#FEF3C7',
-    borderRadius: 8,
-    padding: 8,
-    marginBottom: 8,
-  },
-  aiSafetyText: {
-    fontSize: 12,
-    color: '#92400E',
-    fontWeight: '600',
-  },
-  aiMetaRow: {
+  aiBenchmarkRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    borderTopWidth: 0.5,
-    borderTopColor: '#E9D5FF',
-    paddingTop: 8,
+    marginTop: 4,
+    paddingTop: 4,
+    borderTopWidth: 0.8,
+    borderTopColor: ExecutiveTheme.colors.border,
   },
-  aiMetaText: {
+  aiBenchmarkLabel: {
+    fontSize: 11.5,
+    fontWeight: '700',
+    color: ExecutiveTheme.colors.textSecondary,
+  },
+  aiBenchmarkValue: {
     fontSize: 12,
-    color: '#6B21A8',
+    fontWeight: '800',
+    color: ExecutiveTheme.colors.accentGold,
   },
-  priorityGrid: {
-    flexDirection: 'row',
-    gap: 8,
+  aiPromptText: {
+    fontSize: 12,
+    color: ExecutiveTheme.colors.textSecondary,
+    lineHeight: 17,
     marginTop: 4,
   },
-  priorityOption: {
+  photoActionsRow: {
+    flexDirection: 'row',
+    gap: 10,
+    marginBottom: 10,
+  },
+  photoActionBtn: {
     flex: 1,
-    backgroundColor: '#F2F2F7',
+    backgroundColor: ExecutiveTheme.colors.backgroundSubtle,
     paddingVertical: 10,
     borderRadius: 10,
     alignItems: 'center',
+    borderWidth: 1,
+    borderColor: ExecutiveTheme.colors.border,
   },
-  priorityOptionActive: {
-    backgroundColor: '#007AFF',
-  },
-  priorityHighActive: {
-    backgroundColor: '#FF9500',
-  },
-  priorityUrgentActive: {
-    backgroundColor: '#FF3B30',
-  },
-  priorityText: {
-    fontSize: 12,
+  photoActionBtnText: {
+    fontSize: 12.5,
     fontWeight: '700',
-    color: '#8E8E93',
+    color: ExecutiveTheme.colors.textPrimary,
   },
-  priorityTextActive: {
-    color: '#FFFFFF',
+  photoScroll: {
+    marginTop: 6,
   },
-  photoHeaderRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 10,
-  },
-  addPhotoSmallBtn: {
-    backgroundColor: '#EBF4FF',
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 12,
-  },
-  addPhotoSmallText: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: '#007AFF',
-  },
-  photoGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 10,
-  },
-  photoWrapper: {
-    width: 76,
-    height: 76,
+  photoThumbContainer: {
     position: 'relative',
+    marginRight: 10,
   },
   photoThumb: {
-    width: '100%',
-    height: '100%',
-    borderRadius: 12,
-    backgroundColor: '#E5E5EA',
+    width: 64,
+    height: 64,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: ExecutiveTheme.colors.border,
   },
   removePhotoBtn: {
     position: 'absolute',
-    top: -6,
-    right: -6,
-    width: 22,
-    height: 22,
-    borderRadius: 11,
-    backgroundColor: '#FF3B30',
+    top: -5,
+    right: -5,
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    backgroundColor: '#EF4444',
     alignItems: 'center',
     justifyContent: 'center',
   },
   removePhotoText: {
     color: '#FFFFFF',
     fontSize: 10,
-    fontWeight: '800',
-  },
-  emptyPhotoBox: {
-    borderWidth: 1.5,
-    borderColor: '#E5E5EA',
-    borderStyle: 'dashed',
-    borderRadius: 14,
-    padding: 24,
-    alignItems: 'center',
-  },
-  emptyPhotoIcon: {
-    fontSize: 28,
-    marginBottom: 6,
-  },
-  emptyPhotoTitle: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: '#000000',
-  },
-  emptyPhotoSub: {
-    fontSize: 12,
-    color: '#8E8E93',
-    marginTop: 2,
-    textAlign: 'center',
+    fontWeight: '900',
   },
   submitBtn: {
-    height: 50,
+    backgroundColor: ExecutiveTheme.colors.brandDark,
     borderRadius: 14,
-    backgroundColor: '#007AFF',
+    paddingVertical: 14,
     alignItems: 'center',
-    justifyContent: 'center',
-    shadowColor: '#007AFF',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.25,
-    shadowRadius: 8,
-    elevation: 3,
-    marginTop: 6,
+    marginTop: 4,
+    ...ExecutiveTheme.shadows.soft,
   },
   submitBtnText: {
     color: '#FFFFFF',
-    fontSize: 16,
-    fontWeight: '700',
+    fontSize: 14.5,
+    fontWeight: '800',
+    letterSpacing: 0.2,
   },
   btnDisabled: {
-    backgroundColor: '#A2CAFC',
+    backgroundColor: '#94A3B8',
   },
   pressed: {
-    opacity: 0.85,
+    opacity: 0.75,
   },
 });

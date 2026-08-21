@@ -1,7 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
-import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
-import React, { useCallback, useEffect, useState } from 'react';
+import { router, useFocusEffect } from 'expo-router';
+import React, { useCallback, useState } from 'react';
 import {
   ActivityIndicator,
   FlatList,
@@ -12,6 +12,7 @@ import {
   StatusBar,
   StyleSheet,
   Text,
+  TextInput,
   View,
 } from 'react-native';
 
@@ -22,19 +23,16 @@ import { supabase } from '@/lib/supabase';
 import { MaintenanceService } from '@/services/maintenance-service';
 import { MaintenanceRequest, Profile } from '@/types/maintenance';
 
-export default function StaffDashboard() {
-  const params = useLocalSearchParams<{ filter?: 'active' | 'completed' | 'all' }>();
+export default function StaffWorkQueueScreen() {
   const [staffProfile, setStaffProfile] = useState<Profile | null>(null);
   const [tasks, setTasks] = useState<MaintenanceRequest[]>([]);
-  const [filter, setFilter] = useState<'active' | 'completed' | 'all'>(params.filter || 'all');
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
-  useEffect(() => {
-    if (params.filter) {
-      setFilter(params.filter);
-    }
-  }, [params.filter]);
+  // Filters & Search
+  const [searchQuery, setSearchQuery] = useState('');
+  const [statusFilter, setStatusFilter] = useState<'all' | 'assigned' | 'in_progress' | 'on_hold' | 'urgent'>('all');
+  const [categoryFilter, setCategoryFilter] = useState<'all' | 'Electrical' | 'Plumbing' | 'HVAC' | 'General'>('all');
 
   const loadData = useCallback(async () => {
     try {
@@ -57,7 +55,7 @@ export default function StaffDashboard() {
       const data = await MaintenanceService.getStaffRequests(user.id);
       setTasks(data);
     } catch (err: any) {
-      console.error('Error loading staff dashboard:', err);
+      console.error('Error loading staff work queue:', err);
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -69,15 +67,10 @@ export default function StaffDashboard() {
       loadData();
 
       const channel = supabase
-        .channel('staff_dashboard_realtime')
+        .channel('staff_work_queue_realtime')
         .on(
           'postgres_changes',
           { event: '*', schema: 'public', table: 'maintenance_requests' },
-          () => loadData()
-        )
-        .on(
-          'postgres_changes',
-          { event: '*', schema: 'public', table: 'maintenance_request_photos' },
           () => loadData()
         )
         .subscribe();
@@ -93,22 +86,45 @@ export default function StaffDashboard() {
     }, [loadData])
   );
 
-  const assignedCount = tasks.filter((t) => t.status === 'assigned' || t.status === 'pending').length;
-  const inProgressCount = tasks.filter((t) => t.status === 'in_progress').length;
-  const onHoldCount = tasks.filter((t) => t.status === 'on_hold').length;
-  const completedCount = tasks.filter((t) => t.status === 'completed').length;
+  // Filter only active / open tasks by default
   const activeTasks = tasks.filter((t) =>
     ['assigned', 'in_progress', 'on_hold', 'pending'].includes(t.status || 'pending')
   );
-  const urgentTasks = activeTasks.filter((t) => t.priority === 'urgent' || t.priority === 'high');
 
-  const filteredTasks = tasks.filter((task) => {
-    if (filter === 'active') {
-      return ['assigned', 'in_progress', 'on_hold', 'pending'].includes(task.status || 'pending');
+  const filteredTasks = activeTasks.filter((task) => {
+    // 1. Status Filter
+    if (statusFilter === 'assigned') {
+      if (task.status !== 'assigned' && task.status !== 'pending') return false;
+    } else if (statusFilter === 'in_progress') {
+      if (task.status !== 'in_progress') return false;
+    } else if (statusFilter === 'on_hold') {
+      if (task.status !== 'on_hold') return false;
+    } else if (statusFilter === 'urgent') {
+      if (task.priority !== 'urgent' && task.priority !== 'high') return false;
     }
-    if (filter === 'completed') {
-      return task.status === 'completed';
+
+    // 2. Category Filter
+    if (categoryFilter !== 'all') {
+      const text = `${task.title} ${task.description}`.toLowerCase();
+      if (categoryFilter === 'Electrical') {
+        if (!text.includes('fan') && !text.includes('light') && !text.includes('switch') && !text.includes('power') && !text.includes('bulb') && !text.includes('electric')) return false;
+      } else if (categoryFilter === 'Plumbing') {
+        if (!text.includes('leak') && !text.includes('water') && !text.includes('tap') && !text.includes('pipe') && !text.includes('sink') && !text.includes('toilet') && !text.includes('drain')) return false;
+      } else if (categoryFilter === 'HVAC') {
+        if (!text.includes('ac') && !text.includes('cooling') && !text.includes('air') && !text.includes('chiller') && !text.includes('hvac')) return false;
+      }
     }
+
+    // 3. Search Query
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase().trim();
+      const matchTitle = (task.title || '').toLowerCase().includes(q);
+      const matchDesc = (task.description || '').toLowerCase().includes(q);
+      const matchResident = (task.requester?.full_name || task.requester?.email || '').toLowerCase().includes(q);
+      const matchRef = (task.id || '').toLowerCase().includes(q);
+      if (!matchTitle && !matchDesc && !matchResident && !matchRef) return false;
+    }
+
     return true;
   });
 
@@ -116,35 +132,24 @@ export default function StaffDashboard() {
     <SafeAreaView style={styles.screen}>
       <StatusBar barStyle="dark-content" backgroundColor={ExecutiveTheme.colors.surface} />
 
-      {/* Top App Bar Header Wrapper */}
+      {/* Top Header App Bar */}
       <View style={styles.headerWrapper}>
         <View style={styles.headerRow}>
-          <View style={styles.userInfoGroup}>
+          <View style={styles.headerLeft}>
             <View style={styles.avatarBadge}>
-              <Text style={styles.avatarText}>
-                {staffProfile?.full_name
-                  ? staffProfile.full_name
-                      .split(' ')
-                      .map((n) => n[0])
-                      .join('')
-                      .toUpperCase()
-                      .slice(0, 2)
-                  : 'TC'}
-              </Text>
+              <Ionicons name="construct" size={20} color="#FFFFFF" />
             </View>
-            <View style={styles.userTextGroup}>
-              <Text style={styles.greetingText} numberOfLines={1}>
-                {staffProfile?.full_name || 'Staff Technician'}
-              </Text>
-              <Text style={styles.unitText} numberOfLines={1}>
-                Certified Maintenance Engineering Staff
+            <View>
+              <Text style={styles.headerTitle}>Staff Work Queue</Text>
+              <Text style={styles.headerSubtitle}>
+                {filteredTasks.length} active order(s) requiring attention
               </Text>
             </View>
           </View>
         </View>
       </View>
 
-      {/* Centered Scrollable Main Content Container */}
+      {/* Main Feed Container */}
       <View style={styles.mainFeedWrapper}>
         <FlatList
           data={filteredTasks}
@@ -162,108 +167,64 @@ export default function StaffDashboard() {
             />
           }
           ListHeaderComponent={
-            <View style={styles.dashboardHeader}>
-              {/* Symmetrical 2x2 Workload Grid */}
-              <View style={styles.metricsContainer}>
-                {/* Row 1: Assigned & In Progress */}
-                <View style={styles.metricPairRow}>
-                  <View style={[styles.metricCard, styles.metricCardAssigned]}>
-                    <View style={styles.metricIconWrap}>
-                      <Ionicons name="file-tray-full-outline" size={20} color={ExecutiveTheme.colors.brandPrimary} />
-                    </View>
-                    <View style={styles.metricTextWrap}>
-                      <Text style={styles.metricNumber}>{assignedCount}</Text>
-                      <Text style={styles.metricLabel}>ASSIGNED</Text>
-                    </View>
-                  </View>
-
-                  <View style={[styles.metricCard, styles.metricCardProgress]}>
-                    <View style={[styles.metricIconWrap, { backgroundColor: '#EDE9FE' }]}>
-                      <Ionicons name="construct-outline" size={20} color="#7C3AED" />
-                    </View>
-                    <View style={styles.metricTextWrap}>
-                      <Text style={[styles.metricNumber, { color: '#7C3AED' }]}>{inProgressCount}</Text>
-                      <Text style={[styles.metricLabel, { color: '#7C3AED' }]}>IN PROGRESS</Text>
-                    </View>
-                  </View>
-                </View>
-
-                {/* Row 2: On Hold & Resolved */}
-                <View style={styles.metricPairRow}>
-                  <View style={[styles.metricCard, styles.metricCardHold]}>
-                    <View style={[styles.metricIconWrap, { backgroundColor: '#FFEDD5' }]}>
-                      <Ionicons name="pause-circle-outline" size={20} color="#C2410C" />
-                    </View>
-                    <View style={styles.metricTextWrap}>
-                      <Text style={[styles.metricNumber, { color: '#C2410C' }]}>{onHoldCount}</Text>
-                      <Text style={[styles.metricLabel, { color: '#C2410C' }]}>ON HOLD</Text>
-                    </View>
-                  </View>
-
-                  <View style={[styles.metricCard, styles.metricCardSuccess]}>
-                    <View style={[styles.metricIconWrap, { backgroundColor: '#DCFCE7' }]}>
-                      <Ionicons name="checkmark-circle-outline" size={20} color="#15803D" />
-                    </View>
-                    <View style={styles.metricTextWrap}>
-                      <Text style={[styles.metricNumber, { color: '#15803D' }]}>{completedCount}</Text>
-                      <Text style={[styles.metricLabel, { color: '#15803D' }]}>RESOLVED</Text>
-                    </View>
-                  </View>
-                </View>
+            <View style={styles.controlsHeader}>
+              {/* Search Bar */}
+              <View style={styles.searchBar}>
+                <Ionicons name="search-outline" size={18} color={ExecutiveTheme.colors.textMuted} />
+                <TextInput
+                  style={styles.searchInput}
+                  placeholder="Search by issue title, resident, or REF #"
+                  placeholderTextColor={ExecutiveTheme.colors.textMuted}
+                  value={searchQuery}
+                  onChangeText={setSearchQuery}
+                />
+                {searchQuery.length > 0 && (
+                  <Pressable onPress={() => setSearchQuery('')} hitSlop={8}>
+                    <Ionicons name="close-circle" size={18} color={ExecutiveTheme.colors.textMuted} />
+                  </Pressable>
+                )}
               </View>
 
-              {/* Urgent Priority Alert Banner */}
-              {urgentTasks.length > 0 && (
-                <View style={styles.urgentBanner}>
-                  <Ionicons name="alert-circle" size={22} color="#DC2626" />
-                  <View style={styles.urgentTextGroup}>
-                    <Text style={styles.urgentTitle}>Priority Dispatch Alert</Text>
-                    <Text style={styles.urgentSubtitle}>
-                      {urgentTasks.length} urgent/high priority order(s) require prompt attention.
-                    </Text>
-                  </View>
-                </View>
-              )}
-
-              {/* Segmented Filter Control */}
-              <View style={styles.filterSection}>
-                <View style={styles.segmentedControl}>
-                  <Pressable
-                    style={[styles.segmentTab, filter === 'active' && styles.activeSegmentTab]}
-                    onPress={() => setFilter('active')}
-                  >
-                    <Text
-                      style={[styles.segmentText, filter === 'active' && styles.activeSegmentText]}
-                      numberOfLines={1}
+              {/* Status Filter Chips */}
+              <View style={styles.filterChipRow}>
+                {[
+                  { id: 'all', label: `All Active (${activeTasks.length})` },
+                  { id: 'in_progress', label: 'In Progress' },
+                  { id: 'assigned', label: 'Assigned' },
+                  { id: 'on_hold', label: 'On Hold' },
+                  { id: 'urgent', label: '🚨 Urgent' },
+                ].map((chip) => {
+                  const isActive = statusFilter === chip.id;
+                  return (
+                    <Pressable
+                      key={chip.id}
+                      style={[styles.filterChip, isActive && styles.filterChipActive]}
+                      onPress={() => setStatusFilter(chip.id as any)}
                     >
-                      Active Queue ({activeTasks.length})
-                    </Text>
-                  </Pressable>
+                      <Text style={[styles.filterChipText, isActive && styles.filterChipTextActive]}>
+                        {chip.label}
+                      </Text>
+                    </Pressable>
+                  );
+                })}
+              </View>
 
-                  <Pressable
-                    style={[styles.segmentTab, filter === 'completed' && styles.activeSegmentTab]}
-                    onPress={() => setFilter('completed')}
-                  >
-                    <Text
-                      style={[styles.segmentText, filter === 'completed' && styles.activeSegmentText]}
-                      numberOfLines={1}
+              {/* Category Filter Chips */}
+              <View style={styles.categoryChipRow}>
+                {['all', 'Electrical', 'Plumbing', 'HVAC', 'General'].map((cat) => {
+                  const isActive = categoryFilter === cat;
+                  return (
+                    <Pressable
+                      key={cat}
+                      style={[styles.catChip, isActive && styles.catChipActive]}
+                      onPress={() => setCategoryFilter(cat as any)}
                     >
-                      Resolved ({completedCount})
-                    </Text>
-                  </Pressable>
-
-                  <Pressable
-                    style={[styles.segmentTab, filter === 'all' && styles.activeSegmentTab]}
-                    onPress={() => setFilter('all')}
-                  >
-                    <Text
-                      style={[styles.segmentText, filter === 'all' && styles.activeSegmentText]}
-                      numberOfLines={1}
-                    >
-                      All Orders ({tasks.length})
-                    </Text>
-                  </Pressable>
-                </View>
+                      <Text style={[styles.catChipText, isActive && styles.catChipTextActive]}>
+                        {cat === 'all' ? 'All Categories' : cat}
+                      </Text>
+                    </Pressable>
+                  );
+                })}
               </View>
             </View>
           }
@@ -278,11 +239,11 @@ export default function StaffDashboard() {
                 <View style={styles.emptyIconCircle}>
                   <Ionicons name="checkmark-done-outline" size={28} color={ExecutiveTheme.colors.brandPrimary} />
                 </View>
-                <Text style={styles.emptyTitle}>Work Queue Clear</Text>
+                <Text style={styles.emptyTitle}>Queue Clear</Text>
                 <Text style={styles.emptySub}>
-                  {filter === 'active'
-                    ? 'No active maintenance tasks in your dispatch queue.'
-                    : `No ${filter} work orders recorded.`}
+                  {searchQuery || statusFilter !== 'all' || categoryFilter !== 'all'
+                    ? 'No maintenance tasks match your active filters.'
+                    : 'All work orders are resolved. Great job!'}
                 </Text>
               </View>
             )
@@ -359,7 +320,7 @@ export default function StaffDashboard() {
         />
       </View>
 
-      <AppBottomNav activeTab="home" role="maintenance_staff" />
+      <AppBottomNav activeTab="tasks" role="maintenance_staff" />
     </SafeAreaView>
   );
 }
@@ -385,11 +346,10 @@ const styles = StyleSheet.create({
     width: '100%',
     maxWidth: ExecutiveTheme.MaxContentWidth,
   },
-  userInfoGroup: {
+  headerLeft: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
-    flex: 1,
   },
   avatarBadge: {
     width: 42,
@@ -400,22 +360,13 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     ...ExecutiveTheme.shadows.soft,
   },
-  avatarText: {
-    color: '#FFFFFF',
-    fontSize: 15,
-    fontWeight: '800',
-    letterSpacing: 0.5,
-  },
-  userTextGroup: {
-    flex: 1,
-  },
-  greetingText: {
+  headerTitle: {
     fontSize: 16,
     fontWeight: '800',
     color: ExecutiveTheme.colors.textPrimary,
     letterSpacing: -0.3,
   },
-  unitText: {
+  headerSubtitle: {
     fontSize: 11.5,
     color: ExecutiveTheme.colors.textSecondary,
     fontWeight: '500',
@@ -426,123 +377,80 @@ const styles = StyleSheet.create({
     width: '100%',
     alignItems: 'center',
   },
-  dashboardHeader: {
+  controlsHeader: {
     paddingTop: 14,
-  },
-  metricsContainer: {
+    marginBottom: 10,
     gap: 10,
-    marginBottom: 14,
   },
-  metricPairRow: {
+  searchBar: {
     flexDirection: 'row',
-    gap: 10,
-  },
-  metricCard: {
-    flex: 1,
+    alignItems: 'center',
     backgroundColor: ExecutiveTheme.colors.surface,
-    borderRadius: 14,
-    padding: 12,
     borderWidth: 1,
     borderColor: ExecutiveTheme.colors.border,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-    minHeight: 70,
-    ...ExecutiveTheme.shadows.soft,
-  },
-  metricCardAssigned: {
-    backgroundColor: '#FFFFFF',
-  },
-  metricCardProgress: {
-    backgroundColor: ExecutiveTheme.colors.brandLightMuted,
-    borderColor: ExecutiveTheme.colors.accentGoldBorder,
-  },
-  metricCardHold: {
-    backgroundColor: '#FFF7ED',
-    borderColor: '#FFEDD5',
-  },
-  metricCardSuccess: {
-    backgroundColor: '#F0FDF4',
-    borderColor: '#BBF7D0',
-  },
-  metricIconWrap: {
-    width: 38,
-    height: 38,
-    borderRadius: 11,
-    backgroundColor: ExecutiveTheme.colors.brandLight,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  metricTextWrap: {
-    flex: 1,
-    justifyContent: 'center',
-  },
-  metricNumber: {
-    fontSize: 20,
-    fontWeight: '800',
-    color: ExecutiveTheme.colors.textPrimary,
-    lineHeight: 23,
-  },
-  metricLabel: {
-    fontSize: 9.5,
-    fontWeight: '800',
-    color: ExecutiveTheme.colors.textSecondary,
-    letterSpacing: 0.4,
-    marginTop: 2,
-  },
-  urgentBanner: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-    backgroundColor: '#FEF2F2',
-    borderWidth: 1,
-    borderColor: '#FECACA',
     borderRadius: 12,
-    padding: 12,
-    marginBottom: 12,
+    paddingHorizontal: 14,
+    height: 44,
+    gap: 10,
+    ...ExecutiveTheme.shadows.soft,
   },
-  urgentTextGroup: {
+  searchInput: {
     flex: 1,
+    fontSize: 13.5,
+    color: ExecutiveTheme.colors.textPrimary,
+    fontWeight: '500',
   },
-  urgentTitle: {
-    fontSize: 13,
-    fontWeight: '800',
-    color: '#991B1B',
-  },
-  urgentSubtitle: {
-    fontSize: 11.5,
-    color: '#7F1D1D',
-    marginTop: 1,
-  },
-  filterSection: {
-    marginBottom: 12,
-  },
-  segmentedControl: {
+  filterChipRow: {
     flexDirection: 'row',
-    backgroundColor: ExecutiveTheme.colors.backgroundSubtle,
-    borderRadius: 11,
-    padding: 3,
+    flexWrap: 'wrap',
+    gap: 6,
+  },
+  filterChip: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 8,
+    backgroundColor: ExecutiveTheme.colors.surface,
     borderWidth: 1,
     borderColor: ExecutiveTheme.colors.border,
   },
-  segmentTab: {
-    flex: 1,
-    paddingVertical: 8,
-    alignItems: 'center',
-    borderRadius: 9,
+  filterChipActive: {
+    backgroundColor: ExecutiveTheme.colors.brandPrimary,
+    borderColor: ExecutiveTheme.colors.brandPrimary,
   },
-  activeSegmentTab: {
-    backgroundColor: ExecutiveTheme.colors.surface,
-    ...ExecutiveTheme.shadows.soft,
-  },
-  segmentText: {
-    fontSize: 12,
+  filterChipText: {
+    fontSize: 11.5,
     fontWeight: '600',
     color: ExecutiveTheme.colors.textSecondary,
   },
-  activeSegmentText: {
-    color: ExecutiveTheme.colors.brandPrimary,
+  filterChipTextActive: {
+    color: '#FFFFFF',
     fontWeight: '800',
+  },
+  categoryChipRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 6,
+  },
+  catChip: {
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 6,
+    backgroundColor: ExecutiveTheme.colors.backgroundSubtle,
+    borderWidth: 1,
+    borderColor: ExecutiveTheme.colors.border,
+  },
+  catChipActive: {
+    backgroundColor: ExecutiveTheme.colors.brandLight,
+    borderColor: ExecutiveTheme.colors.accentGoldBorder,
+  },
+  catChipText: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: ExecutiveTheme.colors.textSecondary,
+  },
+  catChipTextActive: {
+    color: ExecutiveTheme.colors.brandPrimary,
+    fontWeight: '700',
   },
   listContent: {
     paddingHorizontal: 20,
@@ -557,7 +465,7 @@ const styles = StyleSheet.create({
     padding: 15,
     borderWidth: 1,
     borderColor: ExecutiveTheme.colors.border,
-    ...ExecutiveTheme.shadows.soft,
+    ...ExecutiveTheme.shadows.card,
   },
   cardPressed: {
     opacity: 0.88,

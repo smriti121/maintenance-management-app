@@ -1,3 +1,4 @@
+import { formatINR } from '@/constants/theme';
 import { Priority } from '@/types/maintenance';
 
 export interface AiTriageResult {
@@ -39,16 +40,16 @@ export class AiService {
                 {
                   parts: [
                     {
-                      text: `You are an expert facilities and maintenance engineering AI.
+                      text: `You are an expert facilities and maintenance engineering AI in India.
 Analyze this maintenance report:
 Title: "${title}"
 Description: "${description}"
 
-Respond ONLY with a JSON object matching this exact schema:
+Respond ONLY with a JSON object matching this exact schema (with currency in Indian Rupees ₹):
 {
   "category": "Electrical" | "Plumbing" | "HVAC" | "Appliances" | "Carpentry" | "General",
   "recommendedPriority": "low" | "medium" | "high" | "urgent",
-  "estimatedCostRange": "$XX - $YY",
+  "estimatedCostRange": "₹XXX - ₹YYY",
   "estimatedDuration": "XX mins",
   "safetyAdvice": ["bullet 1", "bullet 2"],
   "explanation": "Brief reasoning for priority and triage"
@@ -75,7 +76,7 @@ Respond ONLY with a JSON object matching this exact schema:
       }
     }
 
-    // High-performance intelligent heuristic triage engine (Fallback & offline support)
+    // High-performance intelligent heuristic triage engine in Indian Rupees (₹)
     return this.heuristicTriage(text, title);
   }
 
@@ -87,7 +88,7 @@ Respond ONLY with a JSON object matching this exact schema:
     const desc = input.description || 'General maintenance repair';
     const rep = input.replacementDetails || 'Standard component servicing and inspection';
     const time = input.timeSpentMinutes || 30;
-    const cost = input.actualCost != null ? `$${input.actualCost.toFixed(2)}` : '$0.00';
+    const cost = formatINR(input.actualCost ?? 0);
     const warranty = (input.warrantyStatus || 'under_warranty').replace(/_/g, ' ');
 
     const apiKey = process.env.EXPO_PUBLIC_GEMINI_API_KEY;
@@ -162,7 +163,7 @@ Provide ONLY the final summary paragraph without introductory filler words.`,
       return {
         category: '⚡ Electrical',
         recommendedPriority: isUrgent ? 'urgent' : text.includes('fan') || text.includes('power') ? 'high' : 'medium',
-        estimatedCostRange: '$30 - $85',
+        estimatedCostRange: '₹350 - ₹1,200',
         estimatedDuration: '30 - 45 mins',
         safetyAdvice: [
           'Do not touch exposed wiring or wet switches.',
@@ -189,7 +190,7 @@ Provide ONLY the final summary paragraph without introductory filler words.`,
       return {
         category: '🚰 Plumbing',
         recommendedPriority: isUrgent ? 'urgent' : text.includes('leak') ? 'high' : 'medium',
-        estimatedCostRange: '$25 - $70',
+        estimatedCostRange: '₹300 - ₹950',
         estimatedDuration: '20 - 40 mins',
         safetyAdvice: [
           'Place a bucket or towels under the leak to prevent water damage.',
@@ -211,7 +212,7 @@ Provide ONLY the final summary paragraph without introductory filler words.`,
       return {
         category: '❄️ HVAC & Cooling',
         recommendedPriority: 'medium',
-        estimatedCostRange: '$50 - $120',
+        estimatedCostRange: '₹800 - ₹2,500',
         estimatedDuration: '45 - 60 mins',
         safetyAdvice: [
           'Turn off the unit to prevent compressor overload.',
@@ -225,7 +226,7 @@ Provide ONLY the final summary paragraph without introductory filler words.`,
     return {
       category: '🛠️ General Maintenance',
       recommendedPriority: 'medium',
-      estimatedCostRange: '$20 - $50',
+      estimatedCostRange: '₹250 - ₹750',
       estimatedDuration: '30 mins',
       safetyAdvice: ['Keep area clear of personal belongings for technician access.'],
       explanation: 'General facility repair categorized and routed to available maintenance personnel.',

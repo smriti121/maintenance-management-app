@@ -4,18 +4,18 @@ import React, { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   Modal,
-  Platform,
   Pressable,
   SafeAreaView,
   ScrollView,
-  StatusBar,
   StyleSheet,
   Text,
   View,
 } from 'react-native';
 
+import { ExecutiveHeader } from '@/components/executive-header';
 import { PriorityBadge, StatusBadge } from '@/components/status-badge';
 import { TimelineView } from '@/components/timeline-view';
+import { ExecutiveTheme, formatINR } from '@/constants/theme';
 import { supabase } from '@/lib/supabase';
 import { MaintenanceService } from '@/services/maintenance-service';
 import { PdfService } from '@/services/pdf-service';
@@ -52,23 +52,17 @@ export default function UserRequestDetailScreen() {
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'maintenance_requests', filter: `id=eq.${id}` },
-        () => {
-          loadRequest();
-        }
+        () => loadRequest()
       )
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'maintenance_request_photos', filter: `request_id=eq.${id}` },
-        () => {
-          loadRequest();
-        }
+        () => loadRequest()
       )
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'maintenance_timeline_logs', filter: `request_id=eq.${id}` },
-        () => {
-          loadRequest();
-        }
+        () => loadRequest()
       )
       .subscribe();
 
@@ -92,21 +86,24 @@ export default function UserRequestDetailScreen() {
 
   if (loading) {
     return (
-      <View style={styles.centerContainer}>
-        <ActivityIndicator size="large" color="#007AFF" />
-        <Text style={styles.loadingText}>Loading request details...</Text>
-      </View>
+      <SafeAreaView style={styles.screen}>
+        <ExecutiveHeader title="Work Order Details" showBack={true} fallbackRoute="/user/dashboard" />
+        <View style={styles.centerContainer}>
+          <ActivityIndicator size="large" color={ExecutiveTheme.colors.brandDark} />
+          <Text style={styles.loadingText}>Loading work order details...</Text>
+        </View>
+      </SafeAreaView>
     );
   }
 
   if (!request) {
     return (
-      <View style={styles.centerContainer}>
-        <Text style={styles.notFoundText}>Request not found.</Text>
-        <Pressable style={styles.navBackBtn} onPress={() => router.back()}>
-          <Text style={styles.navBackText}>‹</Text>
-        </Pressable>
-      </View>
+      <SafeAreaView style={styles.screen}>
+        <ExecutiveHeader title="Work Order Details" showBack={true} fallbackRoute="/user/dashboard" />
+        <View style={styles.centerContainer}>
+          <Text style={styles.notFoundText}>Work order record not found.</Text>
+        </View>
+      </SafeAreaView>
     );
   }
 
@@ -119,31 +116,29 @@ export default function UserRequestDetailScreen() {
 
   return (
     <SafeAreaView style={styles.screen}>
-      {/* iOS Top Bar */}
-      <View style={styles.topBar}>
-        <Pressable onPress={() => router.back()} style={styles.navBackBtn}>
-          <Text style={styles.navBackText}>‹</Text>
-        </Pressable>
-        <Text style={styles.topBarTitle}>Request Details</Text>
-        <Pressable
-          style={({ pressed }) => [styles.pdfTopBtn, pressed && styles.pressed]}
-          onPress={handleExportPdf}
-          disabled={pdfGenerating}
-        >
-          {pdfGenerating ? (
-            <ActivityIndicator size="small" color="#007AFF" />
-          ) : (
-            <Text style={styles.pdfTopBtnText}>📄 PDF</Text>
-          )}
-        </Pressable>
-      </View>
+      <ExecutiveHeader
+        title="Work Order Details"
+        subtitle={`Ref: #${(request.id || '').slice(0, 8).toUpperCase()}`}
+        showBack={true}
+        fallbackRoute="/user/dashboard"
+        rightElement={
+          <Pressable
+            style={({ pressed }) => [styles.pdfTopBtn, pressed && styles.pressed]}
+            onPress={handleExportPdf}
+            disabled={pdfGenerating}
+          >
+            {pdfGenerating ? (
+              <ActivityIndicator size="small" color="#FFFFFF" />
+            ) : (
+              <Text style={styles.pdfTopBtnText}>📄 PDF Report</Text>
+            )}
+          </Pressable>
+        }
+      />
 
-      <ScrollView
-        contentContainerStyle={styles.scrollContent}
-        showsVerticalScrollIndicator={false}
-      >
+      <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
         <View style={styles.container}>
-          {/* Section 1: Header Card */}
+          {/* Section 1: Overview & Status */}
           <View style={styles.card}>
             <View style={styles.badgeRow}>
               <StatusBadge status={request.status || 'pending'} size="medium" />
@@ -151,132 +146,153 @@ export default function UserRequestDetailScreen() {
             </View>
 
             <Text style={styles.title}>{request.title}</Text>
+            <Text style={styles.description}>{request.description}</Text>
 
-            <Text style={styles.metaText}>
-              Submitted on{' '}
-              {request.created_at
-                ? new Date(request.created_at).toLocaleDateString('en-US', {
-                    year: 'numeric',
-                    month: 'short',
-                    day: 'numeric',
-                    hour: '2-digit',
-                    minute: '2-digit',
-                  })
-                : 'Today'}
-            </Text>
-
-            <View style={styles.divider} />
-
-            <Text style={styles.sectionHeader}>DESCRIPTION</Text>
-            <Text style={styles.descriptionText}>{request.description}</Text>
+            <View style={styles.dateRow}>
+              <Text style={styles.dateLabel}>SUBMITTED ON:</Text>
+              <Text style={styles.dateValue}>
+                {request.created_at
+                  ? new Date(request.created_at).toLocaleDateString('en-IN', {
+                      month: 'short',
+                      day: 'numeric',
+                      year: 'numeric',
+                    })
+                  : 'Today'}
+              </Text>
+            </View>
           </View>
 
-          {/* Section 2: Assigned Staff Card */}
+          {/* Section 2: Assigned Staff / Technician */}
           <View style={styles.card}>
-            <Text style={styles.sectionHeader}>ASSIGNED TECHNICIAN</Text>
+            <Text style={styles.sectionHeader}>ASSIGNED MAINTENANCE SPECIALIST</Text>
             {request.assignee ? (
-              <View style={styles.assigneeBox}>
-                <View style={styles.avatarCircle}>
-                  <Text style={styles.avatarText}>
-                    {(request.assignee.full_name || request.assignee.email || 'T')
-                      .charAt(0)
-                      .toUpperCase()}
+              <View style={styles.staffRow}>
+                <View style={styles.staffAvatar}>
+                  <Text style={styles.staffAvatarText}>
+                    {request.assignee.full_name
+                      ? request.assignee.full_name
+                          .split(' ')
+                          .map((n) => n[0])
+                          .join('')
+                          .toUpperCase()
+                          .slice(0, 2)
+                      : 'TC'}
                   </Text>
                 </View>
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.assigneeName}>
-                    {request.assignee.full_name || 'Assigned Technician'}
-                  </Text>
-                  <Text style={styles.assigneeEmail}>{request.assignee.email}</Text>
+                <View style={styles.staffInfo}>
+                  <Text style={styles.staffName}>{request.assignee.full_name || 'Assigned Staff'}</Text>
+                  <Text style={styles.staffRole}>Certified Technician • Facilities Desk</Text>
+                  <Text style={styles.staffEmail}>{request.assignee.email || ''}</Text>
                 </View>
               </View>
             ) : (
               <View style={styles.unassignedBox}>
-                <Text style={styles.unassignedIcon}>⚡</Text>
                 <Text style={styles.unassignedText}>
-                  Auto-assigning to available maintenance staff...
+                  ⏳ Request logged in dispatch queue. Technician assignment in progress.
                 </Text>
               </View>
             )}
           </View>
 
-          {/* Section 3: Photos Gallery */}
-          {issuePhotos.length > 0 && (
+          {/* Section 3: Financial & Warranty Summary (in ₹ INR) */}
+          {(request.actual_cost != null || request.estimated_cost != null || request.warranty_status) && (
             <View style={styles.card}>
-              <Text style={styles.sectionHeader}>
-                REPORTED ISSUE PHOTOS ({issuePhotos.length})
-              </Text>
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.photoScroll}>
-                {issuePhotos.map((photo, idx) => (
-                  <Pressable
-                    key={photo.id || idx}
-                    onPress={() => setSelectedPhotoUrl(photo.url || null)}
-                  >
-                    <Image source={{ uri: photo.url }} style={styles.galleryPhoto} contentFit="cover" />
-                  </Pressable>
-                ))}
-              </ScrollView>
+              <Text style={styles.sectionHeader}>FINANCIAL & WARRANTY SUMMARY (₹ INR)</Text>
+              <View style={styles.financeGrid}>
+                {request.estimated_cost != null && (
+                  <View style={styles.financeBox}>
+                    <Text style={styles.financeLabel}>Estimated Quote</Text>
+                    <Text style={styles.financeVal}>{formatINR(request.estimated_cost)}</Text>
+                  </View>
+                )}
+                {request.actual_cost != null && (
+                  <View style={[styles.financeBox, { backgroundColor: '#F0FDF4', borderColor: '#BBF7D0' }]}>
+                    <Text style={[styles.financeLabel, { color: '#15803D' }]}>Final Actual Cost</Text>
+                    <Text style={[styles.financeVal, { color: '#15803D' }]}>
+                      {formatINR(request.actual_cost)}
+                    </Text>
+                  </View>
+                )}
+              </View>
+
+              {request.warranty_status && (
+                <View style={styles.warrantyRow}>
+                  <Text style={styles.warrantyLabel}>Warranty Status:</Text>
+                  <Text style={styles.warrantyValue}>
+                    {request.warranty_status.replace(/_/g, ' ').toUpperCase()}
+                  </Text>
+                </View>
+              )}
+
+              {request.replacement_details && (
+                <View style={styles.replacementBox}>
+                  <Text style={styles.replacementLabel}>🔧 Replaced Hardware / Service Notes:</Text>
+                  <Text style={styles.replacementText}>{request.replacement_details}</Text>
+                </View>
+              )}
+
+              {request.completion_summary && (
+                <View style={styles.summaryBox}>
+                  <Text style={styles.summaryLabel}>📋 Verified Technical Completion Summary:</Text>
+                  <Text style={styles.summaryText}>{request.completion_summary}</Text>
+                </View>
+              )}
             </View>
           )}
 
-          {/* Section 4: Resolution Photos */}
-          {resolutionPhotos.length > 0 && (
-            <View style={styles.card}>
-              <Text style={[styles.sectionHeader, { color: '#34C759' }]}>
-                ✅ RESOLUTION PHOTOS ({resolutionPhotos.length})
-              </Text>
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.photoScroll}>
-                {resolutionPhotos.map((photo, idx) => (
-                  <Pressable
-                    key={photo.id || idx}
-                    onPress={() => setSelectedPhotoUrl(photo.url || null)}
-                  >
-                    <Image source={{ uri: photo.url }} style={styles.galleryPhoto} contentFit="cover" />
-                  </Pressable>
-                ))}
-              </ScrollView>
-            </View>
-          )}
-
-          {/* Section 5: Timeline View */}
+          {/* Section 4: Photo Gallery */}
           <View style={styles.card}>
-            <Text style={styles.sectionHeader}>ACTIVITY & AUDIT TRAIL</Text>
-            <TimelineView logs={request.timeline_logs || []} />
+            <Text style={styles.sectionHeader}>WORK ORDER EVIDENCE & PHOTOS</Text>
+
+            {/* Issue Photos */}
+            <Text style={styles.photoSubHeader}>Initial Problem Photos ({issuePhotos.length})</Text>
+            {issuePhotos.length > 0 ? (
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.photoScroll}>
+                {issuePhotos.map((p, idx) => (
+                  <Pressable key={p.id || idx} onPress={() => setSelectedPhotoUrl(p.url || null)}>
+                    <Image source={{ uri: p.url }} style={styles.photoThumb} contentFit="cover" />
+                  </Pressable>
+                ))}
+              </ScrollView>
+            ) : (
+              <Text style={styles.emptyPhotoText}>No initial photos attached.</Text>
+            )}
+
+            {/* Resolution Photos */}
+            {resolutionPhotos.length > 0 && (
+              <>
+                <Text style={[styles.photoSubHeader, { color: '#15803D', marginTop: 12 }]}>
+                  Verified Post-Repair Photos ({resolutionPhotos.length})
+                </Text>
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.photoScroll}>
+                  {resolutionPhotos.map((p, idx) => (
+                    <Pressable key={p.id || idx} onPress={() => setSelectedPhotoUrl(p.url || null)}>
+                      <Image source={{ uri: p.url }} style={styles.photoThumb} contentFit="cover" />
+                    </Pressable>
+                  ))}
+                </ScrollView>
+              </>
+            )}
           </View>
 
-          {/* Section 6: Export PDF CTA Card */}
-          <View style={styles.pdfCard}>
-            <View style={{ flex: 1 }}>
-              <Text style={styles.pdfCardTitle}>Export Audit Report</Text>
-              <Text style={styles.pdfCardSub}>
-                Generate and download an official summary with photos and timeline.
-              </Text>
-            </View>
-            <Pressable
-              style={({ pressed }) => [styles.pdfActionBtn, pressed && styles.pressed]}
-              onPress={handleExportPdf}
-              disabled={pdfGenerating}
-            >
-              {pdfGenerating ? (
-                <ActivityIndicator size="small" color="#FFFFFF" />
-              ) : (
-                <Text style={styles.pdfActionBtnText}>Export PDF</Text>
-              )}
-            </Pressable>
+          {/* Section 5: Timeline & Activity Logs */}
+          <View style={styles.card}>
+            <Text style={styles.sectionHeader}>PROGRESS TIMELINE & AUDIT TRAIL</Text>
+            <TimelineView logs={request.timeline_logs || []} />
           </View>
         </View>
       </ScrollView>
 
-      {/* Fullscreen Photo Modal */}
+      {/* Fullscreen Photo Viewer Modal */}
       <Modal visible={!!selectedPhotoUrl} transparent animationType="fade">
-        <View style={styles.modalBackdrop}>
+        <View style={styles.fullscreenModal}>
           <Pressable style={styles.closeModalBtn} onPress={() => setSelectedPhotoUrl(null)}>
-            <Text style={styles.closeModalText}>✕</Text>
+            <Text style={styles.closeModalText}>✕ Close</Text>
           </Pressable>
           {selectedPhotoUrl && (
             <Image
               source={{ uri: selectedPhotoUrl }}
-              style={styles.modalImage}
+              style={styles.fullscreenImage}
               contentFit="contain"
             />
           )}
@@ -289,77 +305,26 @@ export default function UserRequestDetailScreen() {
 const styles = StyleSheet.create({
   screen: {
     flex: 1,
-    backgroundColor: '#F2F2F7',
-    paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight : 0,
-  },
-  topBar: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    backgroundColor: '#FFFFFF',
-    borderBottomWidth: 0.5,
-    borderBottomColor: '#E5E5EA',
-  },
-  navBackBtn: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
-    backgroundColor: '#F2F2F7',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  navBackText: {
-    fontSize: 24,
-    color: '#007AFF',
-    fontWeight: '600',
-    marginTop: -2,
-  },
-  topBarTitle: {
-    fontSize: 17,
-    fontWeight: '700',
-    color: '#000000',
-    letterSpacing: -0.3,
-    flex: 1,
-    textAlign: 'center',
-    marginHorizontal: 8,
-  },
-  pdfTopBtn: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 16,
-    backgroundColor: '#F2F2F7',
-    borderWidth: 0.5,
-    borderColor: '#E5E5EA',
-  },
-  pdfTopBtnText: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: '#007AFF',
+    backgroundColor: ExecutiveTheme.colors.background,
   },
   scrollContent: {
-    paddingHorizontal: 16,
+    paddingHorizontal: 20,
     paddingVertical: 16,
-    paddingBottom: 40,
+    paddingBottom: 36,
   },
   container: {
     width: '100%',
-    maxWidth: 680,
+    maxWidth: ExecutiveTheme.MaxContentWidth,
     alignSelf: 'center',
     gap: 14,
   },
   card: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 16,
-    padding: 18,
-    borderWidth: 0.5,
-    borderColor: '#E5E5EA',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.04,
-    shadowRadius: 4,
-    elevation: 1,
+    backgroundColor: ExecutiveTheme.colors.surface,
+    borderRadius: 14,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: ExecutiveTheme.colors.border,
+    ...ExecutiveTheme.shadows.soft,
   },
   badgeRow: {
     flexDirection: 'row',
@@ -367,175 +332,245 @@ const styles = StyleSheet.create({
     marginBottom: 10,
   },
   title: {
-    fontSize: 20,
+    fontSize: 18,
     fontWeight: '800',
-    color: '#000000',
-    letterSpacing: -0.4,
-    marginBottom: 4,
+    color: ExecutiveTheme.colors.textPrimary,
+    letterSpacing: -0.3,
+    marginBottom: 6,
   },
-  metaText: {
-    fontSize: 12.5,
-    color: '#8E8E93',
-    fontWeight: '500',
+  description: {
+    fontSize: 14,
+    color: ExecutiveTheme.colors.textSecondary,
+    lineHeight: 20,
+    marginBottom: 10,
   },
-  divider: {
-    height: 0.5,
-    backgroundColor: '#E5E5EA',
-    marginVertical: 14,
+  dateRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingTop: 8,
+    borderTopWidth: 0.8,
+    borderTopColor: ExecutiveTheme.colors.borderSubtle,
   },
-  sectionHeader: {
+  dateLabel: {
+    fontSize: 10,
+    fontWeight: '800',
+    color: ExecutiveTheme.colors.textMuted,
+    letterSpacing: 0.4,
+  },
+  dateValue: {
     fontSize: 11.5,
     fontWeight: '700',
-    color: '#8E8E93',
-    letterSpacing: 0.4,
-    marginBottom: 8,
+    color: ExecutiveTheme.colors.textSecondary,
   },
-  descriptionText: {
-    fontSize: 14.5,
-    color: '#3A3A3C',
-    lineHeight: 20,
+  sectionHeader: {
+    fontSize: 11,
+    fontWeight: '800',
+    color: ExecutiveTheme.colors.textSecondary,
+    letterSpacing: 0.5,
+    marginBottom: 12,
   },
-  assigneeBox: {
+  staffRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
-    backgroundColor: '#F2F2F7',
-    padding: 12,
-    borderRadius: 12,
   },
-  avatarCircle: {
-    width: 42,
-    height: 42,
-    borderRadius: 21,
-    backgroundColor: '#007AFF',
+  staffAvatar: {
+    width: 44,
+    height: 44,
+    borderRadius: 12,
+    backgroundColor: ExecutiveTheme.colors.brandDark,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  avatarText: {
+  staffAvatarText: {
+    fontSize: 16,
+    fontWeight: '800',
     color: '#FFFFFF',
-    fontSize: 18,
-    fontWeight: '700',
   },
-  assigneeName: {
+  staffInfo: {
+    flex: 1,
+  },
+  staffName: {
     fontSize: 15,
-    fontWeight: '700',
-    color: '#000000',
+    fontWeight: '800',
+    color: ExecutiveTheme.colors.textPrimary,
   },
-  assigneeEmail: {
-    fontSize: 12.5,
-    color: '#8E8E93',
+  staffRole: {
+    fontSize: 11.5,
+    color: ExecutiveTheme.colors.textSecondary,
+    fontWeight: '600',
     marginTop: 1,
   },
-  unassignedBox: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    backgroundColor: '#FFF9F2',
-    padding: 12,
-    borderRadius: 12,
-    borderWidth: 0.5,
-    borderColor: '#FFE8D1',
+  staffEmail: {
+    fontSize: 11,
+    color: ExecutiveTheme.colors.textMuted,
   },
-  unassignedIcon: {
-    fontSize: 18,
+  unassignedBox: {
+    backgroundColor: ExecutiveTheme.colors.backgroundSubtle,
+    borderRadius: 10,
+    padding: 12,
+    borderWidth: 1,
+    borderColor: ExecutiveTheme.colors.border,
   },
   unassignedText: {
-    fontSize: 13,
-    color: '#FF9500',
-    fontWeight: '600',
+    fontSize: 12.5,
+    color: ExecutiveTheme.colors.textSecondary,
+    fontStyle: 'italic',
+  },
+  financeGrid: {
+    flexDirection: 'row',
+    gap: 10,
+    marginBottom: 10,
+  },
+  financeBox: {
     flex: 1,
+    backgroundColor: ExecutiveTheme.colors.backgroundSubtle,
+    borderRadius: 10,
+    padding: 10,
+    borderWidth: 1,
+    borderColor: ExecutiveTheme.colors.border,
+  },
+  financeLabel: {
+    fontSize: 10.5,
+    fontWeight: '700',
+    color: ExecutiveTheme.colors.textSecondary,
+    textTransform: 'uppercase',
+  },
+  financeVal: {
+    fontSize: 16,
+    fontWeight: '800',
+    color: ExecutiveTheme.colors.brandDark,
+    marginTop: 2,
+  },
+  warrantyRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    paddingVertical: 6,
+  },
+  warrantyLabel: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: ExecutiveTheme.colors.textSecondary,
+  },
+  warrantyValue: {
+    fontSize: 12,
+    fontWeight: '800',
+    color: ExecutiveTheme.colors.textPrimary,
+  },
+  replacementBox: {
+    backgroundColor: ExecutiveTheme.colors.backgroundSubtle,
+    borderRadius: 8,
+    padding: 10,
+    marginTop: 8,
+    borderWidth: 0.8,
+    borderColor: ExecutiveTheme.colors.border,
+  },
+  replacementLabel: {
+    fontSize: 11,
+    fontWeight: '800',
+    color: ExecutiveTheme.colors.textPrimary,
+    marginBottom: 2,
+  },
+  replacementText: {
+    fontSize: 12,
+    color: ExecutiveTheme.colors.textSecondary,
+    lineHeight: 16,
+  },
+  summaryBox: {
+    backgroundColor: '#F8FAFC',
+    borderRadius: 8,
+    padding: 10,
+    marginTop: 8,
+    borderWidth: 0.8,
+    borderColor: ExecutiveTheme.colors.border,
+  },
+  summaryLabel: {
+    fontSize: 11,
+    fontWeight: '800',
+    color: ExecutiveTheme.colors.textPrimary,
+    marginBottom: 2,
+  },
+  summaryText: {
+    fontSize: 12,
+    color: ExecutiveTheme.colors.textSecondary,
+    lineHeight: 16,
+  },
+  photoSubHeader: {
+    fontSize: 11,
+    fontWeight: '800',
+    color: ExecutiveTheme.colors.textSecondary,
+    marginBottom: 6,
   },
   photoScroll: {
-    marginTop: 6,
+    marginTop: 4,
   },
-  galleryPhoto: {
-    width: 100,
-    height: 100,
-    borderRadius: 12,
-    marginRight: 10,
-    backgroundColor: '#E5E5EA',
-    borderWidth: 0.5,
-    borderColor: '#D1D1D6',
+  photoThumb: {
+    width: 72,
+    height: 72,
+    borderRadius: 10,
+    marginRight: 8,
+    borderWidth: 1,
+    borderColor: ExecutiveTheme.colors.border,
   },
-  pdfCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#FFFFFF',
-    borderRadius: 16,
-    padding: 16,
-    borderWidth: 0.5,
-    borderColor: '#E5E5EA',
-  },
-  pdfCardTitle: {
-    fontSize: 15,
-    fontWeight: '700',
-    color: '#000000',
-  },
-  pdfCardSub: {
+  emptyPhotoText: {
     fontSize: 12,
-    color: '#8E8E93',
-    marginTop: 2,
-    paddingRight: 8,
+    color: ExecutiveTheme.colors.textMuted,
+    fontStyle: 'italic',
   },
-  pdfActionBtn: {
-    backgroundColor: '#007AFF',
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderRadius: 12,
+  pdfTopBtn: {
+    backgroundColor: ExecutiveTheme.colors.brandDark,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 8,
   },
-  pdfActionBtnText: {
-    color: '#FFFFFF',
-    fontSize: 13.5,
+  pdfTopBtnText: {
+    fontSize: 11.5,
     fontWeight: '700',
-  },
-  modalBackdrop: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.92)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 16,
-  },
-  closeModalBtn: {
-    position: 'absolute',
-    top: 50,
-    right: 20,
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: 'rgba(255,255,255,0.2)',
-    alignItems: 'center',
-    justifyContent: 'center',
-    zIndex: 10,
-  },
-  closeModalText: {
     color: '#FFFFFF',
-    fontSize: 16,
-    fontWeight: '700',
-  },
-  modalImage: {
-    width: '100%',
-    height: '80%',
   },
   centerContainer: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    padding: 32,
-    backgroundColor: '#F2F2F7',
+    paddingVertical: 60,
   },
   loadingText: {
+    fontSize: 13,
+    color: ExecutiveTheme.colors.textSecondary,
     marginTop: 10,
-    fontSize: 13.5,
-    color: '#8E8E93',
-    fontWeight: '500',
   },
   notFoundText: {
-    fontSize: 17,
+    fontSize: 14,
+    color: ExecutiveTheme.colors.textSecondary,
+    fontWeight: '600',
+  },
+  fullscreenModal: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.92)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  fullscreenImage: {
+    width: '90%',
+    height: '80%',
+  },
+  closeModalBtn: {
+    position: 'absolute',
+    top: 50,
+    right: 20,
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 20,
+    zIndex: 20,
+  },
+  closeModalText: {
+    color: '#FFFFFF',
+    fontSize: 13,
     fontWeight: '700',
-    color: '#000000',
-    marginBottom: 12,
   },
   pressed: {
-    opacity: 0.85,
+    opacity: 0.75,
   },
 });
