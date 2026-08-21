@@ -50,13 +50,10 @@ export function BrandLogo({
           <Text style={[styles.title, isSmall && styles.titleSmall, isLarge && styles.titleLarge]}>
             Fix<Text style={styles.titleHighlight}>Flow</Text>
           </Text>
-          <View style={styles.proBadge}>
-            <Text style={styles.proBadgeText}>ENTERPRISE</Text>
-          </View>
         </View>
         {showSubtitle && (
           <Text style={[styles.subtitle, isSmall && styles.subtitleSmall]}>
-            Smart Facility Maintenance Platform
+            Smart Facility Maintenance
           </Text>
         )}
       </View>

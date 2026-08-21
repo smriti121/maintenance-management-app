@@ -1,3 +1,4 @@
+import { Ionicons } from '@expo/vector-icons';
 import { router, useFocusEffect } from 'expo-router';
 import React, { useCallback, useState } from 'react';
 import {
@@ -144,7 +145,9 @@ export default function UserProfileScreen() {
                 <Text style={styles.sectionHeader}>FACILITY DESK & SUPPORT</Text>
 
                 <View style={styles.helpRow}>
-                  <Text style={styles.helpIcon}>🏢</Text>
+                  <View style={styles.helpIconCircle}>
+                    <Ionicons name="business-outline" size={18} color={ExecutiveTheme.colors.brandPrimary} />
+                  </View>
                   <View style={styles.helpContent}>
                     <Text style={styles.helpTitle}>Central Maintenance Helpdesk</Text>
                     <Text style={styles.helpSubtitle}>24/7 Dispatch Desk: 1800-349-3569</Text>
@@ -152,7 +155,9 @@ export default function UserProfileScreen() {
                 </View>
 
                 <View style={styles.helpRow}>
-                  <Text style={styles.helpIcon}>🚨</Text>
+                  <View style={[styles.helpIconCircle, { backgroundColor: '#FFF1F2' }]}>
+                    <Ionicons name="call-outline" size={18} color="#E11D48" />
+                  </View>
                   <View style={styles.helpContent}>
                     <Text style={styles.helpTitle}>Emergency Facility Hotline</Text>
                     <Text style={styles.helpSubtitle}>Water burst, electrical spark, fire alarm</Text>
@@ -166,7 +171,7 @@ export default function UserProfileScreen() {
 
                 <View style={styles.infoRow}>
                   <Text style={styles.infoLabel}>Application</Text>
-                  <Text style={styles.infoValue}>FixFlow Commercial Hub</Text>
+                  <Text style={styles.infoValue}>FixFlow</Text>
                 </View>
 
                 <View style={[styles.infoRow, { borderBottomWidth: 0 }]}>
@@ -180,7 +185,8 @@ export default function UserProfileScreen() {
                 style={({ pressed }) => [styles.signOutBtn, pressed && styles.pressed]}
                 onPress={handleSignOut}
               >
-                <Text style={styles.signOutBtnText}>🚪 Sign Out of Account</Text>
+                <Ionicons name="log-out-outline" size={16} color="#DC2626" />
+                <Text style={styles.signOutBtnText}>Sign Out of Account</Text>
               </Pressable>
             </>
           )}
@@ -297,8 +303,13 @@ const styles = StyleSheet.create({
     gap: 12,
     paddingVertical: 8,
   },
-  helpIcon: {
-    fontSize: 22,
+  helpIconCircle: {
+    width: 36,
+    height: 36,
+    borderRadius: 10,
+    backgroundColor: ExecutiveTheme.colors.brandLight,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   helpContent: {
     flex: 1,
@@ -314,16 +325,19 @@ const styles = StyleSheet.create({
     marginTop: 1,
   },
   signOutBtn: {
-    backgroundColor: '#FEF2F2',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    backgroundColor: '#FFF1F2',
     borderWidth: 1,
-    borderColor: '#FECACA',
+    borderColor: '#FECDD3',
     borderRadius: 12,
     paddingVertical: 13,
-    alignItems: 'center',
     marginTop: 4,
   },
   signOutBtnText: {
-    color: '#991B1B',
+    color: '#E11D48',
     fontSize: 14,
     fontWeight: '800',
   },

@@ -1,3 +1,4 @@
+import { Ionicons } from '@expo/vector-icons';
 import { router, useFocusEffect } from 'expo-router';
 import React, { useCallback, useState } from 'react';
 import {
@@ -169,7 +170,7 @@ export default function StaffProfileScreen() {
 
                 <View style={styles.infoRow}>
                   <Text style={styles.infoLabel}>Application</Text>
-                  <Text style={styles.infoValue}>FixFlow Commercial Hub</Text>
+                  <Text style={styles.infoValue}>FixFlow</Text>
                 </View>
 
                 <View style={[styles.infoRow, { borderBottomWidth: 0 }]}>
@@ -183,7 +184,8 @@ export default function StaffProfileScreen() {
                 style={({ pressed }) => [styles.signOutBtn, pressed && styles.pressed]}
                 onPress={handleSignOut}
               >
-                <Text style={styles.signOutBtnText}>🚪 Sign Out of Technician Account</Text>
+                <Ionicons name="log-out-outline" size={16} color="#DC2626" />
+                <Text style={styles.signOutBtnText}>Sign Out of Staff Account</Text>
               </Pressable>
             </>
           )}
@@ -320,16 +322,19 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   signOutBtn: {
-    backgroundColor: '#FEF2F2',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    backgroundColor: '#FFF1F2',
     borderWidth: 1,
-    borderColor: '#FECACA',
+    borderColor: '#FECDD3',
     borderRadius: 12,
     paddingVertical: 13,
-    alignItems: 'center',
     marginTop: 4,
   },
   signOutBtnText: {
-    color: '#991B1B',
+    color: '#E11D48',
     fontSize: 14,
     fontWeight: '800',
   },

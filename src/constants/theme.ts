@@ -96,8 +96,8 @@ export const ExecutiveTheme = {
     xl: 20,
     full: 9999,
   },
-  MaxContentWidth: 980,
-  maxContentWidth: 980,
+  MaxContentWidth: 860,
+  maxContentWidth: 860,
 };
 
 /**

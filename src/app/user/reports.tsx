@@ -401,12 +401,10 @@ const styles = StyleSheet.create({
   },
   priorityGrid: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
     gap: 8,
   },
   priorityCard: {
     flex: 1,
-    minWidth: '45%',
     backgroundColor: ExecutiveTheme.colors.backgroundSubtle,
     borderRadius: 8,
     padding: 10,

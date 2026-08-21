@@ -113,7 +113,7 @@ const styles = StyleSheet.create({
   backBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    minWidth: 70,
+    width: 76,
     height: 38,
     gap: 4,
   },
@@ -125,26 +125,19 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  backIcon: {
-    fontSize: 20,
-    fontWeight: '600',
-    color: ExecutiveTheme.colors.brandPrimary,
-    lineHeight: 22,
-    marginLeft: -1,
-  },
   backLabel: {
     fontSize: 13.5,
     fontWeight: '700',
     color: ExecutiveTheme.colors.brandPrimary,
   },
   backPlaceholder: {
-    minWidth: 44,
+    width: 76,
   },
   titleContainer: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingHorizontal: 8,
+    paddingHorizontal: 4,
   },
   headerTitle: {
     fontSize: 15.5,
@@ -160,12 +153,12 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   rightSlot: {
-    minWidth: 44,
+    width: 76,
     alignItems: 'flex-end',
     justifyContent: 'center',
   },
   rightPlaceholder: {
-    width: 44,
+    width: 76,
   },
   pressed: {
     opacity: 0.7,

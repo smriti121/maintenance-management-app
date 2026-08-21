@@ -569,12 +569,12 @@ const styles = StyleSheet.create({
   },
   segmentedControl: {
     flexDirection: 'row',
+    width: '100%',
     backgroundColor: ExecutiveTheme.colors.backgroundSubtle,
     borderRadius: 11,
     padding: 3,
     borderWidth: 1,
     borderColor: ExecutiveTheme.colors.border,
-    maxWidth: 520,
   },
   segmentTab: {
     flex: 1,

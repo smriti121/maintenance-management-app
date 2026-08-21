@@ -1,3 +1,4 @@
+import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import * as ImagePicker from 'expo-image-picker';
 import { router, useLocalSearchParams } from 'expo-router';
@@ -42,31 +43,36 @@ export default function CreateRequestScreen() {
 
   const presetIssues = [
     {
-      label: '💨 Fan not working',
+      label: 'Fan Issue',
+      icon: 'sync-outline' as const,
       title: 'Ceiling Fan Not Working',
       desc: 'Ceiling fan is not rotating / making grinding noise. Requires inspection of regulator and motor.',
       priority: 'medium' as Priority,
     },
     {
-      label: '💡 Bulb not working',
+      label: 'Bulb / Light',
+      icon: 'bulb-outline' as const,
       title: 'Bulb / Lighting Fixture Issue',
       desc: 'Light bulb has fused and needs replacement. Fixture power supply needs checking.',
       priority: 'low' as Priority,
     },
     {
-      label: '❄️ AC issue',
+      label: 'AC Issue',
+      icon: 'snow-outline' as const,
       title: 'Air Conditioner Cooling Issue',
       desc: 'AC is not cooling effectively / blowing warm air. Filters and gas pressure need inspection.',
       priority: 'high' as Priority,
     },
     {
-      label: '🚰 Plumbing issue',
+      label: 'Plumbing',
+      icon: 'water-outline' as const,
       title: 'Plumbing & Tap Leakage',
       desc: 'Continuous water leakage observed from bathroom/kitchen pipeline. Requires valve and joint sealing.',
       priority: 'high' as Priority,
     },
     {
-      label: '⚡ Electrical issue',
+      label: 'Electrical',
+      icon: 'flash-outline' as const,
       title: 'Electrical Switch / Power Issue',
       desc: 'Power socket is sparking / unresponsive. Circuit breaker trips when appliance is connected.',
       priority: 'urgent' as Priority,
@@ -230,7 +236,7 @@ export default function CreateRequestScreen() {
     <SafeAreaView style={styles.screen}>
       <ExecutiveHeader
         title="New Maintenance Request"
-        subtitle="Commercial Facility Dispatch"
+        subtitle="Facility Maintenance Dispatch"
         showBack={true}
         fallbackRoute="/user/dashboard"
       />
@@ -255,6 +261,7 @@ export default function CreateRequestScreen() {
                     style={({ pressed }) => [styles.presetChip, pressed && styles.pressed]}
                     onPress={() => handleSelectPreset(preset)}
                   >
+                    <Ionicons name={preset.icon} size={13} color={ExecutiveTheme.colors.brandPrimary} />
                     <Text style={styles.presetChipText}>{preset.label}</Text>
                   </Pressable>
                 ))}
@@ -324,7 +331,10 @@ export default function CreateRequestScreen() {
                   {aiAnalyzing ? (
                     <ActivityIndicator size="small" color={ExecutiveTheme.colors.brandDark} />
                   ) : (
-                    <Text style={styles.aiBtnText}>✨ Analyze Issue</Text>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                      <Ionicons name="sparkles" size={13} color={ExecutiveTheme.colors.brandDark} />
+                      <Text style={styles.aiBtnText}>Analyze Issue</Text>
+                    </View>
                   )}
                 </Pressable>
               </View>
@@ -357,13 +367,15 @@ export default function CreateRequestScreen() {
                   style={({ pressed }) => [styles.photoActionBtn, pressed && styles.pressed]}
                   onPress={pickPhotos}
                 >
-                  <Text style={styles.photoActionBtnText}>🖼️ Upload Photos</Text>
+                  <Ionicons name="images-outline" size={16} color={ExecutiveTheme.colors.textPrimary} />
+                  <Text style={styles.photoActionBtnText}>Upload Photos</Text>
                 </Pressable>
                 <Pressable
                   style={({ pressed }) => [styles.photoActionBtn, pressed && styles.pressed]}
                   onPress={takePhoto}
                 >
-                  <Text style={styles.photoActionBtnText}>📷 Open Camera</Text>
+                  <Ionicons name="camera-outline" size={16} color={ExecutiveTheme.colors.textPrimary} />
+                  <Text style={styles.photoActionBtnText}>Open Camera</Text>
                 </Pressable>
               </View>
 
@@ -394,7 +406,10 @@ export default function CreateRequestScreen() {
               {submitting ? (
                 <ActivityIndicator color="#FFFFFF" />
               ) : (
-                <Text style={styles.submitBtnText}>🚀 Submit Maintenance Work Order</Text>
+                <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
+                  <Ionicons name="send" size={15} color="#FFFFFF" />
+                  <Text style={styles.submitBtnText}>Submit Maintenance Request</Text>
+                </View>
               )}
             </Pressable>
           </View>
@@ -444,6 +459,9 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   presetChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
     backgroundColor: ExecutiveTheme.colors.backgroundSubtle,
     borderRadius: 20,
     paddingHorizontal: 12,
@@ -495,8 +513,8 @@ const styles = StyleSheet.create({
     borderColor: ExecutiveTheme.colors.border,
   },
   priorityChipSelected: {
-    backgroundColor: ExecutiveTheme.colors.brandDark,
-    borderColor: ExecutiveTheme.colors.brandDark,
+    backgroundColor: ExecutiveTheme.colors.brandPrimary,
+    borderColor: ExecutiveTheme.colors.brandPrimary,
   },
   priorityChipText: {
     fontSize: 11,
@@ -585,10 +603,13 @@ const styles = StyleSheet.create({
   },
   photoActionBtn: {
     flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
     backgroundColor: ExecutiveTheme.colors.backgroundSubtle,
     paddingVertical: 10,
     borderRadius: 10,
-    alignItems: 'center',
     borderWidth: 1,
     borderColor: ExecutiveTheme.colors.border,
   },
