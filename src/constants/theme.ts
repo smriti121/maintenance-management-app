@@ -104,8 +104,8 @@ export const ExecutiveTheme = {
     headerHeight: 56,
     bottomNavHeight: 58,
   },
-  MaxContentWidth: 860,
-  maxContentWidth: 860,
+  MaxContentWidth: 780,
+  maxContentWidth: 780,
 };
 
 /**

@@ -13,6 +13,7 @@ import {
   StatusBar,
   StyleSheet,
   Text,
+  useWindowDimensions,
   View,
 } from 'react-native';
 
@@ -112,6 +113,9 @@ export default function UserDashboard() {
     { label: 'Electrical', icon: 'flash-outline' as const, title: 'Electrical Switch / Socket Spark' },
   ];
 
+  const { width } = useWindowDimensions();
+  const isMobile = width < 640;
+
   const insets = useSafeAreaInsets();
   const topPadding = Math.max(
     insets.top,
@@ -177,9 +181,9 @@ export default function UserDashboard() {
           }
           ListHeaderComponent={
             <View style={styles.dashboardHeader}>
-              {/* Symmetrical 2x2 Mobile Metric Grid */}
-              <View style={styles.metricsContainer}>
-                <View style={styles.metricPairRow}>
+              {/* Responsive Metrics: 4 in 1 Row on Desktop/Tablet, 2x2 on Mobile */}
+              {!isMobile ? (
+                <View style={styles.metricsRow}>
                   <View style={[styles.metricCard, styles.metricCardTotal]}>
                     <View style={styles.metricIconWrap}>
                       <Ionicons name="documents-outline" size={18} color={ExecutiveTheme.colors.brandPrimary} />
@@ -199,9 +203,7 @@ export default function UserDashboard() {
                       <Text style={[styles.metricLabel, { color: '#2563EB' }]}>IN PROGRESS</Text>
                     </View>
                   </View>
-                </View>
 
-                <View style={styles.metricPairRow}>
                   <View style={[styles.metricCard, styles.metricCardPending]}>
                     <View style={[styles.metricIconWrap, { backgroundColor: '#FFFBEB' }]}>
                       <Ionicons name="hourglass-outline" size={18} color="#D97706" />
@@ -222,17 +224,59 @@ export default function UserDashboard() {
                     </View>
                   </View>
                 </View>
-              </View>
+              ) : (
+                <View style={styles.metricsContainer}>
+                  <View style={styles.metricPairRow}>
+                    <View style={[styles.metricCard, styles.metricCardTotal]}>
+                      <View style={styles.metricIconWrap}>
+                        <Ionicons name="documents-outline" size={18} color={ExecutiveTheme.colors.brandPrimary} />
+                      </View>
+                      <View style={styles.metricTextWrap}>
+                        <Text style={styles.metricNumber}>{requests.length}</Text>
+                        <Text style={styles.metricLabel}>TOTAL</Text>
+                      </View>
+                    </View>
+
+                    <View style={[styles.metricCard, styles.metricCardProgress]}>
+                      <View style={[styles.metricIconWrap, { backgroundColor: '#EFF6FF' }]}>
+                        <Ionicons name="time-outline" size={18} color="#2563EB" />
+                      </View>
+                      <View style={styles.metricTextWrap}>
+                        <Text style={[styles.metricNumber, { color: '#2563EB' }]}>{inProgressCount}</Text>
+                        <Text style={[styles.metricLabel, { color: '#2563EB' }]}>IN PROGRESS</Text>
+                      </View>
+                    </View>
+                  </View>
+
+                  <View style={styles.metricPairRow}>
+                    <View style={[styles.metricCard, styles.metricCardPending]}>
+                      <View style={[styles.metricIconWrap, { backgroundColor: '#FFFBEB' }]}>
+                        <Ionicons name="hourglass-outline" size={18} color="#D97706" />
+                      </View>
+                      <View style={styles.metricTextWrap}>
+                        <Text style={[styles.metricNumber, { color: '#D97706' }]}>{pendingCount}</Text>
+                        <Text style={[styles.metricLabel, { color: '#D97706' }]}>PENDING</Text>
+                      </View>
+                    </View>
+
+                    <View style={[styles.metricCard, styles.metricCardSuccess]}>
+                      <View style={[styles.metricIconWrap, { backgroundColor: '#ECFDF5' }]}>
+                        <Ionicons name="checkmark-circle-outline" size={18} color="#059669" />
+                      </View>
+                      <View style={styles.metricTextWrap}>
+                        <Text style={[styles.metricNumber, { color: '#059669' }]}>{completedCount}</Text>
+                        <Text style={[styles.metricLabel, { color: '#059669' }]}>RESOLVED</Text>
+                      </View>
+                    </View>
+                  </View>
+                </View>
+              )}
 
               {/* Quick Preset Shortcuts */}
               <View style={styles.sectionHeaderWrap}>
                 <Text style={styles.sectionTitle}>QUICK SERVICE PRESETS</Text>
               </View>
-              <ScrollView
-                horizontal
-                showsHorizontalScrollIndicator={false}
-                contentContainerStyle={styles.shortcutsScrollContent}
-              >
+              <View style={styles.presetsWrap}>
                 {quickShortcuts.map((preset, index) => (
                   <Pressable
                     key={index}
@@ -248,7 +292,7 @@ export default function UserDashboard() {
                     <Text style={styles.shortcutText}>{preset.label}</Text>
                   </Pressable>
                 ))}
-              </ScrollView>
+              </View>
 
               {/* Segmented Filter Control */}
               <View style={styles.filterSection}>
@@ -492,6 +536,11 @@ const styles = StyleSheet.create({
     gap: 10,
     marginBottom: 16,
   },
+  metricsRow: {
+    flexDirection: 'row',
+    gap: 10,
+    marginBottom: 16,
+  },
   metricPairRow: {
     flexDirection: 'row',
     gap: 10,
@@ -567,6 +616,12 @@ const styles = StyleSheet.create({
     fontSize: 11,
     color: ExecutiveTheme.colors.textSecondary,
     marginTop: 1,
+  },
+  presetsWrap: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginBottom: 14,
   },
   shortcutsScrollContent: {
     gap: 8,

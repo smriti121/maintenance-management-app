@@ -12,6 +12,7 @@ import {
   StatusBar,
   StyleSheet,
   Text,
+  useWindowDimensions,
   View,
 } from 'react-native';
 
@@ -113,6 +114,9 @@ export default function StaffDashboard() {
     return true;
   });
 
+  const { width } = useWindowDimensions();
+  const isMobile = width < 640;
+
   const insets = useSafeAreaInsets();
   const topPadding = Math.max(
     insets.top,
@@ -188,9 +192,9 @@ export default function StaffDashboard() {
           }
           ListHeaderComponent={
             <View style={styles.dashboardHeader}>
-              {/* Symmetrical 2x2 Mobile Metric Grid */}
-              <View style={styles.metricsContainer}>
-                <View style={styles.metricPairRow}>
+              {/* Responsive Metrics: 4 in 1 Row on Desktop/Tablet, 2x2 on Mobile */}
+              {!isMobile ? (
+                <View style={styles.metricsRow}>
                   <View style={[styles.metricCard, styles.metricCardAssigned]}>
                     <View style={styles.metricIconWrap}>
                       <Ionicons name="file-tray-full-outline" size={18} color={ExecutiveTheme.colors.brandPrimary} />
@@ -210,9 +214,7 @@ export default function StaffDashboard() {
                       <Text style={[styles.metricLabel, { color: '#2563EB' }]}>IN PROGRESS</Text>
                     </View>
                   </View>
-                </View>
 
-                <View style={styles.metricPairRow}>
                   <View style={[styles.metricCard, styles.metricCardHold]}>
                     <View style={[styles.metricIconWrap, { backgroundColor: '#FFFBEB' }]}>
                       <Ionicons name="pause-circle-outline" size={18} color="#D97706" />
@@ -233,7 +235,53 @@ export default function StaffDashboard() {
                     </View>
                   </View>
                 </View>
-              </View>
+              ) : (
+                <View style={styles.metricsContainer}>
+                  <View style={styles.metricPairRow}>
+                    <View style={[styles.metricCard, styles.metricCardAssigned]}>
+                      <View style={styles.metricIconWrap}>
+                        <Ionicons name="file-tray-full-outline" size={18} color={ExecutiveTheme.colors.brandPrimary} />
+                      </View>
+                      <View style={styles.metricTextWrap}>
+                        <Text style={styles.metricNumber}>{assignedCount}</Text>
+                        <Text style={styles.metricLabel}>ASSIGNED</Text>
+                      </View>
+                    </View>
+
+                    <View style={[styles.metricCard, styles.metricCardProgress]}>
+                      <View style={[styles.metricIconWrap, { backgroundColor: '#EFF6FF' }]}>
+                        <Ionicons name="construct-outline" size={18} color="#2563EB" />
+                      </View>
+                      <View style={styles.metricTextWrap}>
+                        <Text style={[styles.metricNumber, { color: '#2563EB' }]}>{inProgressCount}</Text>
+                        <Text style={[styles.metricLabel, { color: '#2563EB' }]}>IN PROGRESS</Text>
+                      </View>
+                    </View>
+                  </View>
+
+                  <View style={styles.metricPairRow}>
+                    <View style={[styles.metricCard, styles.metricCardHold]}>
+                      <View style={[styles.metricIconWrap, { backgroundColor: '#FFFBEB' }]}>
+                        <Ionicons name="pause-circle-outline" size={18} color="#D97706" />
+                      </View>
+                      <View style={styles.metricTextWrap}>
+                        <Text style={[styles.metricNumber, { color: '#D97706' }]}>{onHoldCount}</Text>
+                        <Text style={[styles.metricLabel, { color: '#D97706' }]}>ON HOLD</Text>
+                      </View>
+                    </View>
+
+                    <View style={[styles.metricCard, styles.metricCardSuccess]}>
+                      <View style={[styles.metricIconWrap, { backgroundColor: '#ECFDF5' }]}>
+                        <Ionicons name="checkmark-circle-outline" size={18} color="#059669" />
+                      </View>
+                      <View style={styles.metricTextWrap}>
+                        <Text style={[styles.metricNumber, { color: '#059669' }]}>{completedCount}</Text>
+                        <Text style={[styles.metricLabel, { color: '#059669' }]}>RESOLVED</Text>
+                      </View>
+                    </View>
+                  </View>
+                </View>
+              )}
 
               {/* Urgent Priority Alert Banner */}
               {urgentTasks.length > 0 && (
@@ -497,6 +545,11 @@ const styles = StyleSheet.create({
     paddingTop: 14,
   },
   metricsContainer: {
+    gap: 10,
+    marginBottom: 14,
+  },
+  metricsRow: {
+    flexDirection: 'row',
     gap: 10,
     marginBottom: 14,
   },
