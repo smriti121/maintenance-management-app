@@ -5,10 +5,12 @@ import {
   BackHandler,
   Platform,
   Pressable,
+  StatusBar,
   StyleSheet,
   Text,
   View,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { ExecutiveTheme } from '@/constants/theme';
 
@@ -29,6 +31,12 @@ export function ExecutiveHeader({
   fallbackRoute = '/user/dashboard',
   rightElement,
 }: ExecutiveHeaderProps) {
+  const insets = useSafeAreaInsets();
+  const topPadding = Math.max(
+    insets.top,
+    Platform.OS === 'android' ? (StatusBar.currentHeight || 28) : 10
+  );
+
   function handleBack() {
     if (onBack) {
       onBack();
@@ -54,7 +62,7 @@ export function ExecutiveHeader({
   }, [showBack]);
 
   return (
-    <View style={styles.headerContainer}>
+    <View style={[styles.headerContainer, { paddingTop: topPadding + 6 }]}>
       <View style={styles.innerRow}>
         {showBack ? (
           <Pressable

@@ -16,6 +16,7 @@ import {
 
 import { BrandLogo } from '@/components/brand-logo';
 import { ExecutiveTheme } from '@/constants/theme';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { supabase } from '@/lib/supabase';
 import { UserRole } from '@/types/maintenance';
 import { showAlert } from '@/utils/alert';
@@ -238,6 +239,12 @@ export default function AuthScreen() {
     );
   }
 
+  const insets = useSafeAreaInsets();
+  const topPadding = Math.max(
+    insets.top,
+    Platform.OS === 'android' ? (StatusBar.currentHeight || 28) : 20
+  );
+
   return (
     <KeyboardAvoidingView
       style={styles.screen}
@@ -245,7 +252,7 @@ export default function AuthScreen() {
     >
       <StatusBar barStyle="dark-content" backgroundColor={ExecutiveTheme.colors.background} />
       <ScrollView
-        contentContainerStyle={styles.scrollContent}
+        contentContainerStyle={[styles.scrollContent, { paddingTop: topPadding + 16 }]}
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >

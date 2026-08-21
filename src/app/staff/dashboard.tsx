@@ -18,6 +18,7 @@ import {
 import { AppBottomNav } from '@/components/app-bottom-nav';
 import { PriorityBadge, StatusBadge } from '@/components/status-badge';
 import { ExecutiveTheme } from '@/constants/theme';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { supabase } from '@/lib/supabase';
 import { MaintenanceService } from '@/services/maintenance-service';
 import { MaintenanceRequest, Profile } from '@/types/maintenance';
@@ -112,12 +113,18 @@ export default function StaffDashboard() {
     return true;
   });
 
+  const insets = useSafeAreaInsets();
+  const topPadding = Math.max(
+    insets.top,
+    Platform.OS === 'android' ? (StatusBar.currentHeight || 28) : 10
+  );
+
   return (
     <SafeAreaView style={styles.screen}>
       <StatusBar barStyle="dark-content" backgroundColor={ExecutiveTheme.colors.surface} />
 
       {/* Top App Bar Header Wrapper */}
-      <View style={styles.headerWrapper}>
+      <View style={[styles.headerWrapper, { paddingTop: topPadding + 6 }]}>
         <View style={styles.headerRow}>
           <View style={styles.userInfoGroup}>
             <View style={styles.avatarBadge}>
