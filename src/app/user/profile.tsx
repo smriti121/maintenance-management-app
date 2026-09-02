@@ -13,7 +13,9 @@ import {
 
 import { AppBottomNav } from '@/components/app-bottom-nav';
 import { ExecutiveHeader } from '@/components/executive-header';
+import { LanguageSelector } from '@/components/language-selector';
 import { ExecutiveTheme } from '@/constants/theme';
+import { useLanguage } from '@/context/language-context';
 import { supabase } from '@/lib/supabase';
 import { MaintenanceService } from '@/services/maintenance-service';
 import { Profile } from '@/types/maintenance';
@@ -23,6 +25,7 @@ export default function UserProfileScreen() {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [requestCount, setRequestCount] = useState(0);
   const [loading, setLoading] = useState(true);
+  const { t } = useLanguage();
 
   const loadProfile = useCallback(async () => {
     try {
@@ -62,9 +65,9 @@ export default function UserProfileScreen() {
 
   async function handleSignOut() {
     confirmAction({
-      title: 'Sign Out',
-      message: 'Are you sure you want to sign out of your account?',
-      confirmText: 'Sign Out',
+      title: t('profile.signOutConfirmTitle', 'Sign Out'),
+      message: t('profile.signOutConfirmMessage', 'Are you sure you want to sign out of FixFlow?'),
+      confirmText: t('common.signOut', 'Sign Out'),
       destructive: true,
       onConfirm: async () => {
         try {
@@ -89,8 +92,8 @@ export default function UserProfileScreen() {
   return (
     <SafeAreaView style={styles.screen}>
       <ExecutiveHeader
-        title="Resident Profile"
-        subtitle="Account Details & Facility Settings"
+        title={t('profile.headerTitle', 'Resident Profile')}
+        subtitle={t('profile.headerSubtitle', 'Preferences & Account Management')}
         showBack={false}
       />
 
@@ -98,7 +101,7 @@ export default function UserProfileScreen() {
         <View style={styles.container}>
           {loading ? (
             <View style={styles.centerContainer}>
-              <ActivityIndicator size="large" color={ExecutiveTheme.colors.brandDark} />
+              <ActivityIndicator size="large" color={ExecutiveTheme.colors.brandPrimary} />
             </View>
           ) : (
             <>
@@ -107,76 +110,83 @@ export default function UserProfileScreen() {
                 <View style={styles.avatarCircle}>
                   <Text style={styles.avatarText}>{initials}</Text>
                 </View>
-                <Text style={styles.userName}>{profile?.full_name || 'Resident Account'}</Text>
+                <Text style={styles.userName}>{profile?.full_name || t('userDashboard.greetingFallback', 'Resident Portal')}</Text>
                 <Text style={styles.userEmail}>{profile?.email || 'N/A'}</Text>
 
                 <View style={styles.roleChip}>
-                  <Text style={styles.roleChipText}>RESIDENT MEMBER</Text>
+                  <Text style={styles.roleChipText}>{t('profile.roleResident', 'Apartment Resident').toUpperCase()}</Text>
                 </View>
               </View>
 
+              {/* Language Selection Card */}
+              <LanguageSelector />
+
               {/* Account Information Card */}
               <View style={styles.card}>
-                <Text style={styles.sectionHeader}>ACCOUNT DETAILS</Text>
+                <Text style={styles.sectionHeader}>{t('profile.accountDetailsTitle', 'ACCOUNT DETAILS')}</Text>
 
                 <View style={styles.infoRow}>
-                  <Text style={styles.infoLabel}>Full Name</Text>
+                  <Text style={styles.infoLabel}>{t('auth.fullName', 'Full Name')}</Text>
                   <Text style={styles.infoValue}>{profile?.full_name || 'N/A'}</Text>
                 </View>
 
                 <View style={styles.infoRow}>
-                  <Text style={styles.infoLabel}>Email Address</Text>
+                  <Text style={styles.infoLabel}>{t('auth.email', 'Email Address')}</Text>
                   <Text style={styles.infoValue}>{profile?.email || 'N/A'}</Text>
                 </View>
 
                 <View style={styles.infoRow}>
-                  <Text style={styles.infoLabel}>Account Role</Text>
-                  <Text style={styles.infoValue}>Apartment Resident</Text>
+                  <Text style={styles.infoLabel}>{t('profile.accountRoleLabel', 'Account Role')}</Text>
+                  <Text style={styles.infoValue}>{t('profile.roleResident', 'Apartment Resident')}</Text>
                 </View>
 
                 <View style={[styles.infoRow, { borderBottomWidth: 0 }]}>
-                  <Text style={styles.infoLabel}>Total Requests Logged</Text>
-                  <Text style={styles.infoValue}>{requestCount} work orders</Text>
+                  <Text style={styles.infoLabel}>{t('userReports.totalRequests', 'Total Requests')}</Text>
+                  <Text style={styles.infoValue}>
+                    {requestCount} {t('profile.workOrdersUnit', 'work orders')}
+                  </Text>
                 </View>
               </View>
 
               {/* Facility Support & Emergency Helpdesk */}
               <View style={styles.card}>
-                <Text style={styles.sectionHeader}>FACILITY DESK & SUPPORT</Text>
+                <Text style={styles.sectionHeader}>{t('profile.supportSectionTitle', 'FACILITY SUPPORT & HELPDESK')}</Text>
 
                 <View style={styles.helpRow}>
                   <View style={styles.helpIconCircle}>
                     <Ionicons name="business-outline" size={18} color={ExecutiveTheme.colors.brandPrimary} />
                   </View>
                   <View style={styles.helpContent}>
-                    <Text style={styles.helpTitle}>Central Maintenance Helpdesk</Text>
-                    <Text style={styles.helpSubtitle}>24/7 Dispatch Desk: 1800-349-3569</Text>
+                    <Text style={styles.helpTitle}>{t('profile.helpdeskTitle', 'Central Maintenance Helpdesk')}</Text>
+                    <Text style={styles.helpSubtitle}>{t('profile.helpdeskSub', '24/7 Dispatch Desk: 1800-349-3569')}</Text>
                   </View>
                 </View>
 
                 <View style={styles.helpRow}>
-                  <View style={[styles.helpIconCircle, { backgroundColor: '#FFF1F2' }]}>
-                    <Ionicons name="call-outline" size={18} color="#E11D48" />
+                  <View style={[styles.helpIconCircle, { backgroundColor: '#202020', borderWidth: 1, borderColor: '#2B2B2B' }]}>
+                    <Ionicons name="call-outline" size={18} color="#F5C400" />
                   </View>
                   <View style={styles.helpContent}>
-                    <Text style={styles.helpTitle}>Emergency Facility Hotline</Text>
-                    <Text style={styles.helpSubtitle}>Water burst, electrical spark, fire alarm</Text>
+                    <Text style={styles.helpTitle}>{t('profile.emergencyHotlineTitle', 'Emergency Facility Hotline')}</Text>
+                    <Text style={styles.helpSubtitle}>
+                      {t('profile.emergencyHotlineSub', 'Water burst, electrical spark, fire alarm')}
+                    </Text>
                   </View>
                 </View>
               </View>
 
               {/* System Information */}
               <View style={styles.card}>
-                <Text style={styles.sectionHeader}>SYSTEM INFORMATION</Text>
+                <Text style={styles.sectionHeader}>{t('profile.appInfoTitle', 'APPLICATION INFO')}</Text>
 
                 <View style={styles.infoRow}>
-                  <Text style={styles.infoLabel}>Application</Text>
+                  <Text style={styles.infoLabel}>{t('profile.applicationLabel', 'Application')}</Text>
                   <Text style={styles.infoValue}>FixFlow</Text>
                 </View>
 
                 <View style={[styles.infoRow, { borderBottomWidth: 0 }]}>
-                  <Text style={styles.infoLabel}>Version & Build</Text>
-                  <Text style={styles.infoValue}>v1.0.0 (Build 54)</Text>
+                  <Text style={styles.infoLabel}>{t('profile.appVersion', 'Version')}</Text>
+                  <Text style={styles.infoValue}>{t('profile.productionBadge', 'v1.0.0 (Production)')}</Text>
                 </View>
               </View>
 
@@ -185,8 +195,8 @@ export default function UserProfileScreen() {
                 style={({ pressed }) => [styles.signOutBtn, pressed && styles.pressed]}
                 onPress={handleSignOut}
               >
-                <Ionicons name="log-out-outline" size={16} color="#DC2626" />
-                <Text style={styles.signOutBtnText}>Sign Out of Account</Text>
+                <Ionicons name="log-out-outline" size={16} color="#E5E5E5" />
+                <Text style={styles.signOutBtnText}>{t('profile.signOutBtn', 'Sign Out of Account')}</Text>
               </Pressable>
             </>
           )}
@@ -231,12 +241,14 @@ const styles = StyleSheet.create({
     width: 64,
     height: 64,
     borderRadius: 20,
-    backgroundColor: ExecutiveTheme.colors.brandPrimary,
+    backgroundColor: '#2B2B2B',
+    borderWidth: 2,
+    borderColor: '#F5C400',
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 10,
     elevation: 3,
-    shadowColor: '#4F46E5',
+    shadowColor: '#000000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.2,
     shadowRadius: 4,
@@ -244,7 +256,7 @@ const styles = StyleSheet.create({
   avatarText: {
     fontSize: 22,
     fontWeight: '800',
-    color: '#FFFFFF',
+    color: '#F5C400',
     letterSpacing: 1,
   },
   userName: {
@@ -275,14 +287,14 @@ const styles = StyleSheet.create({
   },
   card: {
     backgroundColor: ExecutiveTheme.colors.surface,
-    borderRadius: 16,
-    padding: 16,
+    borderRadius: 14,
+    padding: 14,
     borderWidth: 1,
     borderColor: ExecutiveTheme.colors.border,
     elevation: 2,
-    shadowColor: '#1E293B',
+    shadowColor: '#000000',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.04,
+    shadowOpacity: 0.2,
     shadowRadius: 6,
   },
   sectionHeader: {
@@ -319,7 +331,7 @@ const styles = StyleSheet.create({
     width: 36,
     height: 36,
     borderRadius: 10,
-    backgroundColor: ExecutiveTheme.colors.brandLight,
+    backgroundColor: '#2B2B2B',
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -341,16 +353,16 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: 8,
-    backgroundColor: '#FFF1F2',
+    backgroundColor: '#202020',
     borderWidth: 1,
-    borderColor: '#FECDD3',
+    borderColor: '#2B2B2B',
     borderRadius: 12,
-    paddingVertical: 13,
+    paddingVertical: 12,
     marginTop: 4,
   },
   signOutBtnText: {
-    color: '#E11D48',
-    fontSize: 14,
+    color: '#E5E5E5',
+    fontSize: 13.5,
     fontWeight: '800',
   },
   centerContainer: {

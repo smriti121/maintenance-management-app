@@ -1,39 +1,53 @@
 # 🛠️ FixFlow — AI-Powered Maintenance Management Mobile Application
 
-> An intelligent, end-to-end facilities and maintenance management platform built with **Expo (React Native)**, **TypeScript**, **Supabase**, and **Google Gemini AI**.
+> An intelligent, end-to-end facilities and maintenance management mobile application built with **Expo (React Native)**, **TypeScript**, **Supabase**, and **Google Gemini AI**.
+
+🔗 **Companion Admin Web Portal**: [FixFlow Facility Admin Dashboard](https://github.com/smriti121/maintenance-admin-dashboard)
 
 ---
 
 ## 🌟 Key Highlights & Core Features
 
-### 1. 🔐 Role-Based Access Control (RBAC) & Authentication
+### 1. 🎨 Modern Grey + Yellow Industrial Design
+- High-contrast, accessibility-first theme (`#111111` / `#202020` / `#262626` / `#F5C400`).
+- Fully responsive across Android phones, tablets, and web.
+
+### 2. 🌐 Bilingual Localization (English & Hindi)
+- Seamless dynamic language switching between **English** and **हिन्दी (Hindi)** with full dictionary translations and persistent AsyncStorage preferences.
+
+### 3. 🏷️ QR Code Asset Identification & Registry
+- Instant equipment lookup by scanning physical QR tags on ACs, Fans, Heaters, and electrical units.
+- Auto-populates equipment specifications, location, model number, and past maintenance history into request tickets.
+- Printable facility QR asset directory sheet.
+
+### 4. 🔐 Role-Based Access Control (RBAC) & Authentication
 - Dual-role support: **Resident / User** vs. **Maintenance Staff**.
 - Secure authentication powered by Supabase Auth with persistent session storage.
 - Intelligent initial routing based on account role.
 
-### 2. ⚡ Automatic Workload-Based Assignment Engine
+### 5. ⚡ Automatic Workload-Based Assignment Engine
 - When a resident reports a broken fan, faucet, AC, or appliance:
   1. The system queries all registered **Maintenance Staff**.
   2. Calculates real-time active workload (`pending`, `assigned`, `in_progress`).
   3. Automatically assigns the ticket to the **least-busy technician**.
   4. Records an automatic audit milestone in the activity timeline.
 
-### 3. ✨ AI-Powered Smart Triage & Assistants
+### 6. ✨ AI-Powered Smart Triage & Assistants
 - **AI Smart Triage**: Analyzes issue title and description to predict category (Electrical, Plumbing, HVAC, etc.), recommend priority, estimate cost range, and display instant safety precautions.
 - **AI Technician Completion Summary Generator**: Automatically synthesizes work performed, replacement parts, labor time, and costs into a professional technical sign-off summary with 1 tap.
 
-### 4. 📸 Before & After Photo Evidence
+### 7. 📸 Before & After Photo Evidence
 - Multi-photo upload for residents reporting damage.
 - Categorized photo tracking for technicians (`Before Repair` vs `After / Completion`).
 - Fullscreen zoom preview for audit verification.
 
-### 5. ⏱️ Time Logging & Cost / Warranty Tracking
+### 8. ⏱️ Time Logging & Cost / Warranty Tracking
 - Accurate duration tracking (minutes worked per session) with work descriptions.
 - Total labor hours aggregation.
-- Financial breakdown: Estimated Cost vs. Actual Cost.
+- Financial breakdown: Estimated Cost vs. Actual Cost in ₹ INR.
 - Asset warranty status (`Under Warranty`, `Out of Warranty`, `N/A`), purchase records, and replacement part itemization.
 
-### 6. 📄 Automated PDF Audit Report Generation
+### 9. 📄 Automated PDF Audit Report Generation
 - Exports a complete, branded **Maintenance Service & Audit Report** containing:
   - Official Job Ref and timestamps.
   - Stakeholder details (Resident & Assigned Technician).
@@ -51,9 +65,10 @@
 | :--- | :--- |
 | **Mobile Framework** | Expo SDK 54, React Native 0.81, React 19 |
 | **Routing & Navigation** | Expo Router (Typed File-Based Routing) |
-| **Language** | TypeScript (Strict mode enabled) |
+| **Language & i18n** | TypeScript, Custom Bilingual Context (EN / HI) |
 | **Backend & Storage** | Supabase (PostgreSQL, Row-Level Security, Storage Buckets) |
 | **AI Integration** | Google Gemini API + Heuristic Fallback Engine |
+| **Hardware & Scanning** | `expo-camera`, `react-native-qrcode-svg` |
 | **Document Export** | `expo-print`, `expo-sharing` |
 | **Media & Animations** | `expo-image-picker`, `expo-image`, `react-native-reanimated` |
 

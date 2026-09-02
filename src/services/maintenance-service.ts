@@ -1,5 +1,6 @@
 import { supabase } from '@/lib/supabase';
 import {
+  Equipment,
   MaintenanceRequest,
   PhotoType,
   Priority,
@@ -10,6 +11,7 @@ import {
   TimelineLog,
   WarrantyStatus,
 } from '@/types/maintenance';
+import { EquipmentService } from './equipment-service';
 
 export interface SelectedPhotoInput {
   uri: string;
@@ -22,6 +24,8 @@ export interface CreateRequestInput {
   description: string;
   priority?: Priority;
   photos?: SelectedPhotoInput[];
+  equipment_id?: string | null;
+  product_id?: string | null;
 }
 
 export interface StaffWorkload {
@@ -126,7 +130,7 @@ export class MaintenanceService {
     userId: string,
     input: CreateRequestInput
   ): Promise<MaintenanceRequest> {
-    const { title, description, priority = 'medium', photos = [] } = input;
+    const { title, description, priority = 'medium', photos = [], equipment_id = null, product_id = null } = input;
 
     // 0. Ensure session token user ID matches
     let activeUserId = userId;
@@ -152,6 +156,25 @@ export class MaintenanceService {
 
     // 2. Progressive candidate payloads from full schema to core minimal
     const candidatePayloads = [
+      {
+        requester_id: activeUserId,
+        assigned_to: assignedStaffId,
+        equipment_id: equipment_id || undefined,
+        product_id: product_id || undefined,
+        title: title.trim(),
+        description: description.trim(),
+        priority,
+        status: initialStatus,
+      },
+      {
+        requester_id: activeUserId,
+        assigned_to: assignedStaffId,
+        product_id: product_id || undefined,
+        title: title.trim(),
+        description: description.trim(),
+        priority,
+        status: initialStatus,
+      },
       {
         requester_id: activeUserId,
         assigned_to: assignedStaffId,
@@ -250,10 +273,15 @@ export class MaintenanceService {
       }
     }
 
+    const resolvedEquipment = input.product_id
+      ? await EquipmentService.getEquipmentByProductId(input.product_id)
+      : null;
+
     return {
       ...createdRequestRecord,
       requester: requesterProfile,
       assignee: assigneeProfile,
+      equipment: resolvedEquipment,
       photos: uploadedPhotos,
     } as MaintenanceRequest;
   }
@@ -595,10 +623,17 @@ export class MaintenanceService {
       actor: actorMap.get(l.actor_id) || null,
     }));
 
+    let resolvedEquipment = null;
+    const targetProductId = req.product_id || (req.description?.match(/\[(?:Equipment|Asset|Product ID):\s*([^|\]\n]+)/i)?.[1]?.trim());
+    if (targetProductId) {
+      resolvedEquipment = await EquipmentService.getEquipmentByProductId(targetProductId);
+    }
+
     return {
       ...req,
       requester,
       assignee,
+      equipment: resolvedEquipment,
       photos: processedPhotos,
       timeline_logs: processedTimeline,
       time_logs: timeLogs || [],

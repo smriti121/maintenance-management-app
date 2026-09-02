@@ -2,6 +2,7 @@ import React from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 
 import { ExecutiveTheme } from '@/constants/theme';
+import { useLanguage } from '@/context/language-context';
 import { Priority, RequestStatus } from '@/types/maintenance';
 
 interface StatusBadgeProps {
@@ -10,7 +11,8 @@ interface StatusBadgeProps {
 }
 
 export function StatusBadge({ status, size = 'medium' }: StatusBadgeProps) {
-  const config = getStatusConfig(status);
+  const { t } = useLanguage();
+  const config = getStatusConfig(status, t);
 
   return (
     <View
@@ -42,7 +44,8 @@ interface PriorityBadgeProps {
 }
 
 export function PriorityBadge({ priority, size = 'medium' }: PriorityBadgeProps) {
-  const config = getPriorityConfig(priority);
+  const { t } = useLanguage();
+  const config = getPriorityConfig(priority, t);
 
   return (
     <View
@@ -65,103 +68,103 @@ export function PriorityBadge({ priority, size = 'medium' }: PriorityBadgeProps)
   );
 }
 
-function getStatusConfig(status: RequestStatus) {
+function getStatusConfig(status: RequestStatus, t: (key: string, fb: string) => string) {
   switch (status) {
     case 'pending':
       return {
-        label: 'Pending Assignment',
-        textColor: ExecutiveTheme.colors.statusPendingText,
-        bgColor: ExecutiveTheme.colors.statusPendingBg,
-        borderColor: ExecutiveTheme.colors.statusPendingBorder,
-        dotColor: '#64748B',
+        label: t('status.pending', 'Pending'),
+        textColor: '#E5E5E5',
+        bgColor: '#2B2B2B',
+        borderColor: '#4A4A4A',
+        dotColor: '#888888',
       };
     case 'assigned':
       return {
-        label: 'Assigned',
-        textColor: ExecutiveTheme.colors.statusAssignedText,
-        bgColor: ExecutiveTheme.colors.statusAssignedBg,
-        borderColor: ExecutiveTheme.colors.statusAssignedBorder,
-        dotColor: '#475569',
+        label: t('status.assigned', 'Assigned'),
+        textColor: '#F5C400',
+        bgColor: '#2B2B2B',
+        borderColor: '#F5C400',
+        dotColor: '#F5C400',
       };
     case 'in_progress':
       return {
-        label: 'In Progress',
-        textColor: ExecutiveTheme.colors.statusProgressText,
-        bgColor: ExecutiveTheme.colors.statusProgressBg,
-        borderColor: ExecutiveTheme.colors.statusProgressBorder,
-        dotColor: '#D97706',
+        label: t('status.in_progress', 'In Progress'),
+        textColor: '#F5C400',
+        bgColor: '#202020',
+        borderColor: '#F5C400',
+        dotColor: '#F5C400',
       };
     case 'on_hold':
       return {
-        label: 'On Hold',
-        textColor: ExecutiveTheme.colors.statusHoldText,
-        bgColor: ExecutiveTheme.colors.statusHoldBg,
-        borderColor: ExecutiveTheme.colors.statusHoldBorder,
-        dotColor: '#EA580C',
+        label: t('status.on_hold', 'On Hold'),
+        textColor: '#E5E5E5',
+        bgColor: '#2B2B2B',
+        borderColor: '#4A4A4A',
+        dotColor: '#888888',
       };
     case 'completed':
       return {
-        label: 'Resolved',
-        textColor: ExecutiveTheme.colors.statusCompletedText,
-        bgColor: ExecutiveTheme.colors.statusCompletedBg,
-        borderColor: ExecutiveTheme.colors.statusCompletedBorder,
-        dotColor: '#16A34A',
+        label: t('status.completed', 'Resolved'),
+        textColor: '#FFFFFF',
+        bgColor: '#202020',
+        borderColor: '#4A4A4A',
+        dotColor: '#F5C400',
       };
     case 'cancelled':
       return {
-        label: 'Cancelled',
-        textColor: '#64748B',
-        bgColor: '#F1F5F9',
-        borderColor: '#E2E8F0',
-        dotColor: '#94A3B8',
+        label: t('status.cancelled', 'Cancelled'),
+        textColor: '#888888',
+        bgColor: '#202020',
+        borderColor: '#2B2B2B',
+        dotColor: '#4A4A4A',
       };
     default:
       return {
         label: String(status).toUpperCase(),
-        textColor: '#475569',
-        bgColor: '#F1F5F9',
-        borderColor: '#E2E8F0',
-        dotColor: '#64748B',
+        textColor: '#E5E5E5',
+        bgColor: '#2B2B2B',
+        borderColor: '#4A4A4A',
+        dotColor: '#888888',
       };
   }
 }
 
-function getPriorityConfig(priority: Priority) {
+function getPriorityConfig(priority: Priority, t: (key: string, fb: string) => string) {
   switch (priority) {
     case 'urgent':
       return {
-        label: 'Urgent',
-        textColor: ExecutiveTheme.colors.statusUrgentText,
-        bgColor: ExecutiveTheme.colors.statusUrgentBg,
-        borderColor: ExecutiveTheme.colors.statusUrgentBorder,
+        label: t('priority.emergency', 'Emergency'),
+        textColor: '#111111',
+        bgColor: '#F5C400',
+        borderColor: '#F5C400',
       };
     case 'high':
       return {
-        label: 'High Priority',
-        textColor: '#9A3412',
-        bgColor: '#FFEDD5',
-        borderColor: '#FED7AA',
+        label: t('priority.high', 'High'),
+        textColor: '#F5C400',
+        bgColor: '#2B2B2B',
+        borderColor: '#F5C400',
       };
     case 'medium':
       return {
-        label: 'Standard',
-        textColor: '#854D0E',
-        bgColor: '#FEF9C3',
-        borderColor: '#FEF08A',
+        label: t('priority.medium', 'Standard'),
+        textColor: '#E5E5E5',
+        bgColor: '#202020',
+        borderColor: '#4A4A4A',
       };
     case 'low':
       return {
-        label: 'Low Priority',
-        textColor: '#334155',
-        bgColor: '#F1F5F9',
-        borderColor: '#E2E8F0',
+        label: t('priority.low', 'Low'),
+        textColor: '#888888',
+        bgColor: '#202020',
+        borderColor: '#2B2B2B',
       };
     default:
       return {
         label: String(priority).toUpperCase(),
-        textColor: '#475569',
-        bgColor: '#F1F5F9',
-        borderColor: '#E2E8F0',
+        textColor: '#888888',
+        bgColor: '#202020',
+        borderColor: '#2B2B2B',
       };
   }
 }

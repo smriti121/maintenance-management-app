@@ -69,81 +69,81 @@ function getActionIcon(action: string, status?: string | null) {
       return {
         icon: '📝',
         title: 'Request Created',
-        color: '#2563EB',
-        bgColor: '#EFF6FF',
+        color: '#F5C400',
+        bgColor: '#2B2B2B',
       };
     case 'assigned':
       return {
         icon: '👤',
         title: 'Assigned to Staff',
-        color: '#7C3AED',
-        bgColor: '#F5F3FF',
+        color: '#F5C400',
+        bgColor: '#2B2B2B',
       };
     case 'status_changed':
       if (status === 'completed') {
         return {
           icon: '✅',
           title: 'Marked Completed',
-          color: '#059669',
-          bgColor: '#ECFDF5',
+          color: '#F5C400',
+          bgColor: '#202020',
         };
       }
       if (status === 'in_progress') {
         return {
           icon: '🔧',
           title: 'Work In Progress',
-          color: '#7C3AED',
-          bgColor: '#F5F3FF',
+          color: '#F5C400',
+          bgColor: '#202020',
         };
       }
       if (status === 'on_hold') {
         return {
           icon: '⏸️',
           title: 'Placed On Hold',
-          color: '#EA580C',
-          bgColor: '#FFF7ED',
+          color: '#E5E5E5',
+          bgColor: '#2B2B2B',
         };
       }
       return {
         icon: '🔄',
         title: `Status: ${status || 'Updated'}`,
-        color: '#4B5563',
-        bgColor: '#F3F4F6',
+        color: '#E5E5E5',
+        bgColor: '#2B2B2B',
       };
     case 'note_added':
       return {
         icon: '💬',
         title: 'Technician Note',
-        color: '#0284C7',
-        bgColor: '#F0F9FF',
+        color: '#F5C400',
+        bgColor: '#2B2B2B',
       };
     case 'time_logged':
       return {
         icon: '⏱️',
         title: 'Time Logged',
-        color: '#4F46E5',
-        bgColor: '#EEF2FF',
+        color: '#F5C400',
+        bgColor: '#202020',
       };
     case 'photo_uploaded':
       return {
         icon: '📷',
         title: 'Photo Uploaded',
-        color: '#D97706',
-        bgColor: '#FEF3C7',
+        color: '#F5C400',
+        bgColor: '#2B2B2B',
       };
     case 'details_updated':
       return {
         icon: '📋',
         title: 'Repair Details Updated',
-        color: '#0D9488',
-        bgColor: '#F0FDFA',
+        color: '#F5C400',
+        bgColor: '#2B2B2B',
       };
     default:
       return {
         icon: '📌',
         title: action.replace('_', ' ').toUpperCase(),
-        color: '#6B7280',
-        bgColor: '#F9FAFB',
+        color: '#E5E5E5',
+        bgColor: '#2B2B2B',
       };
   }
 }
@@ -173,7 +173,7 @@ const styles = StyleSheet.create({
   },
   emptyText: {
     fontSize: 14,
-    color: '#9CA3AF',
+    color: ExecutiveTheme.colors.textMuted,
   },
   itemRow: {
     flexDirection: 'row',
@@ -197,7 +197,7 @@ const styles = StyleSheet.create({
   line: {
     width: 2,
     flex: 1,
-    backgroundColor: '#E5E7EB',
+    backgroundColor: '#4A4A4A',
     marginVertical: 4,
   },
   contentBlock: {

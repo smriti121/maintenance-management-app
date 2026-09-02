@@ -18,12 +18,15 @@ import {
 } from 'react-native';
 
 import { AppBottomNav } from '@/components/app-bottom-nav';
+import { EquipmentQrSheetModal } from '@/components/equipment-qr-sheet-modal';
+import { QrScannerModal } from '@/components/qr-scanner-modal';
 import { PriorityBadge, StatusBadge } from '@/components/status-badge';
 import { ExecutiveTheme } from '@/constants/theme';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useLanguage } from '@/context/language-context';
 import { supabase } from '@/lib/supabase';
 import { MaintenanceService } from '@/services/maintenance-service';
-import { MaintenanceRequest, Profile } from '@/types/maintenance';
+import { Equipment, MaintenanceRequest, Profile } from '@/types/maintenance';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 export default function UserDashboard() {
   const [userProfile, setUserProfile] = useState<Profile | null>(null);
@@ -31,6 +34,9 @@ export default function UserDashboard() {
   const [filter, setFilter] = useState<'all' | 'active' | 'completed'>('all');
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [scannerVisible, setScannerVisible] = useState(false);
+  const [assetSheetVisible, setAssetSheetVisible] = useState(false);
+  const { t } = useLanguage();
 
   const loadData = useCallback(async () => {
     try {
@@ -106,28 +112,32 @@ export default function UserDashboard() {
   const completedCount = requests.filter((r) => r.status === 'completed').length;
 
   const quickShortcuts = [
-    { label: 'Fan Issue', icon: 'sync-outline' as const, title: 'Ceiling Fan Not Working' },
-    { label: 'Bulb / Light', icon: 'bulb-outline' as const, title: 'Bulb / Light Replacement' },
-    { label: 'AC Service', icon: 'snow-outline' as const, title: 'Air Conditioner Cooling Malfunction' },
-    { label: 'Plumbing', icon: 'water-outline' as const, title: 'Water Pipe / Tap Leakage' },
-    { label: 'Electrical', icon: 'flash-outline' as const, title: 'Electrical Switch / Socket Spark' },
+    { label: t('userDashboard.presets.fanIssue', 'Fan Issue'), icon: 'sync-outline' as const, title: t('userDashboard.presets.fanIssueTitle', 'Ceiling Fan Not Working') },
+    { label: t('userDashboard.presets.bulbLight', 'Bulb / Light'), icon: 'bulb-outline' as const, title: t('userDashboard.presets.bulbLightTitle', 'Bulb / Light Replacement') },
+    { label: t('userDashboard.presets.acService', 'AC Service'), icon: 'snow-outline' as const, title: t('userDashboard.presets.acServiceTitle', 'Air Conditioner Cooling Malfunction') },
+    { label: t('userDashboard.presets.plumbing', 'Plumbing'), icon: 'water-outline' as const, title: t('userDashboard.presets.plumbingTitle', 'Water Pipe / Tap Leakage') },
+    { label: t('userDashboard.presets.electrical', 'Electrical'), icon: 'flash-outline' as const, title: t('userDashboard.presets.electricalTitle', 'Electrical Switch / Socket Spark') },
   ];
+
+  function handleEquipmentScanned(eq: Equipment) {
+    router.push({
+      pathname: '/user/create-request',
+      params: { productId: eq.product_id },
+    });
+  }
 
   const { width } = useWindowDimensions();
   const isMobile = width < 640;
 
   const insets = useSafeAreaInsets();
-  const topPadding = Math.max(
-    insets.top,
-    Platform.OS === 'android' ? (StatusBar.currentHeight || 28) : 10
-  );
+  const topPadding = Platform.OS === 'web' ? 10 : Math.max(insets.top, Platform.OS === 'android' ? (StatusBar.currentHeight || 24) : 10) + 4;
 
   return (
     <SafeAreaView style={styles.screen}>
-      <StatusBar barStyle="dark-content" backgroundColor={ExecutiveTheme.colors.surface} />
+      <StatusBar barStyle="light-content" backgroundColor={ExecutiveTheme.colors.surface} />
 
       {/* Top Header App Bar (Centered & Responsive) */}
-      <View style={[styles.headerWrapper, { paddingTop: topPadding + 6 }]}>
+      <View style={[styles.headerWrapper, { paddingTop: topPadding }]}>
         <View style={styles.headerRow}>
           <View style={styles.userInfoGroup}>
             <View style={styles.avatarBadge}>
@@ -144,10 +154,10 @@ export default function UserDashboard() {
             </View>
             <View style={styles.userTextGroup}>
               <Text style={styles.greetingText} numberOfLines={1}>
-                {userProfile?.full_name || 'Resident Portal'}
+                {userProfile?.full_name || t('userDashboard.greetingFallback', 'Resident Portal')}
               </Text>
               <Text style={styles.unitText} numberOfLines={1}>
-                Apartment Resident • Verified
+                {t('userDashboard.verifiedResident', 'Apartment Resident • Verified')}
               </Text>
             </View>
           </View>
@@ -157,7 +167,7 @@ export default function UserDashboard() {
             onPress={() => router.push('/user/create-request')}
           >
             <Ionicons name="add" size={16} color="#FFFFFF" />
-            <Text style={styles.newHeaderBtnText}>New Request</Text>
+            <Text style={styles.newHeaderBtnText}>{t('userDashboard.newRequestBtn', 'New Request')}</Text>
           </Pressable>
         </View>
       </View>
@@ -165,6 +175,7 @@ export default function UserDashboard() {
       {/* Centered Scrollable Main Content Container */}
       <View style={styles.mainFeedWrapper}>
         <FlatList
+          style={styles.flatList}
           data={filteredRequests}
           keyExtractor={(item) => item.id}
           contentContainerStyle={styles.listContent}
@@ -185,96 +196,136 @@ export default function UserDashboard() {
               {!isMobile ? (
                 <View style={styles.metricsRow}>
                   <View style={[styles.metricCard, styles.metricCardTotal]}>
-                    <View style={styles.metricIconWrap}>
-                      <Ionicons name="documents-outline" size={18} color={ExecutiveTheme.colors.brandPrimary} />
+                    <View style={styles.metricTopRow}>
+                      <View style={[styles.metricIconWrap, { backgroundColor: '#202020' }]}>
+                        <Ionicons name="documents-outline" size={15} color="#F5C400" />
+                      </View>
+                      <Text style={[styles.metricNumber, { color: '#F5C400' }]}>{requests.length}</Text>
                     </View>
-                    <View style={styles.metricTextWrap}>
-                      <Text style={styles.metricNumber}>{requests.length}</Text>
-                      <Text style={styles.metricLabel}>TOTAL</Text>
-                    </View>
+                    <Text style={[styles.metricLabel, { color: '#F5C400' }]}>
+                      {t('userDashboard.totalRequests', 'TOTAL')}
+                    </Text>
                   </View>
 
                   <View style={[styles.metricCard, styles.metricCardProgress]}>
-                    <View style={[styles.metricIconWrap, { backgroundColor: '#EFF6FF' }]}>
-                      <Ionicons name="time-outline" size={18} color="#2563EB" />
+                    <View style={styles.metricTopRow}>
+                      <View style={[styles.metricIconWrap, { backgroundColor: '#202020' }]}>
+                        <Ionicons name="time-outline" size={15} color="#F5C400" />
+                      </View>
+                      <Text style={[styles.metricNumber, { color: '#F5C400' }]}>{inProgressCount}</Text>
                     </View>
-                    <View style={styles.metricTextWrap}>
-                      <Text style={[styles.metricNumber, { color: '#2563EB' }]}>{inProgressCount}</Text>
-                      <Text style={[styles.metricLabel, { color: '#2563EB' }]}>IN PROGRESS</Text>
-                    </View>
+                    <Text style={[styles.metricLabel, { color: '#F5C400' }]}>
+                      {t('userDashboard.inProgressRequests', 'IN PROGRESS')}
+                    </Text>
                   </View>
 
                   <View style={[styles.metricCard, styles.metricCardPending]}>
-                    <View style={[styles.metricIconWrap, { backgroundColor: '#FFFBEB' }]}>
-                      <Ionicons name="hourglass-outline" size={18} color="#D97706" />
+                    <View style={styles.metricTopRow}>
+                      <View style={[styles.metricIconWrap, { backgroundColor: '#202020' }]}>
+                        <Ionicons name="hourglass-outline" size={15} color="#F5C400" />
+                      </View>
+                      <Text style={[styles.metricNumber, { color: '#F5C400' }]}>{pendingCount}</Text>
                     </View>
-                    <View style={styles.metricTextWrap}>
-                      <Text style={[styles.metricNumber, { color: '#D97706' }]}>{pendingCount}</Text>
-                      <Text style={[styles.metricLabel, { color: '#D97706' }]}>PENDING</Text>
-                    </View>
+                    <Text style={[styles.metricLabel, { color: '#F5C400' }]}>
+                      {t('userDashboard.pendingRequests', 'PENDING')}
+                    </Text>
                   </View>
 
                   <View style={[styles.metricCard, styles.metricCardSuccess]}>
-                    <View style={[styles.metricIconWrap, { backgroundColor: '#ECFDF5' }]}>
-                      <Ionicons name="checkmark-circle-outline" size={18} color="#059669" />
+                    <View style={styles.metricTopRow}>
+                      <View style={[styles.metricIconWrap, { backgroundColor: '#202020' }]}>
+                        <Ionicons name="checkmark-circle-outline" size={15} color="#F5C400" />
+                      </View>
+                      <Text style={[styles.metricNumber, { color: '#F5C400' }]}>{completedCount}</Text>
                     </View>
-                    <View style={styles.metricTextWrap}>
-                      <Text style={[styles.metricNumber, { color: '#059669' }]}>{completedCount}</Text>
-                      <Text style={[styles.metricLabel, { color: '#059669' }]}>RESOLVED</Text>
-                    </View>
+                    <Text style={[styles.metricLabel, { color: '#F5C400' }]}>
+                      {t('userDashboard.resolvedRequests', 'RESOLVED')}
+                    </Text>
                   </View>
                 </View>
               ) : (
                 <View style={styles.metricsContainer}>
                   <View style={styles.metricPairRow}>
                     <View style={[styles.metricCard, styles.metricCardTotal]}>
-                      <View style={styles.metricIconWrap}>
-                        <Ionicons name="documents-outline" size={18} color={ExecutiveTheme.colors.brandPrimary} />
+                      <View style={styles.metricTopRow}>
+                        <View style={[styles.metricIconWrap, { backgroundColor: '#202020' }]}>
+                          <Ionicons name="documents-outline" size={15} color="#F5C400" />
+                        </View>
+                        <Text style={[styles.metricNumber, { color: '#F5C400' }]}>{requests.length}</Text>
                       </View>
-                      <View style={styles.metricTextWrap}>
-                        <Text style={styles.metricNumber}>{requests.length}</Text>
-                        <Text style={styles.metricLabel}>TOTAL</Text>
-                      </View>
+                      <Text style={[styles.metricLabel, { color: '#F5C400' }]}>
+                        {t('userDashboard.totalRequests', 'TOTAL')}
+                      </Text>
                     </View>
 
                     <View style={[styles.metricCard, styles.metricCardProgress]}>
-                      <View style={[styles.metricIconWrap, { backgroundColor: '#EFF6FF' }]}>
-                        <Ionicons name="time-outline" size={18} color="#2563EB" />
+                      <View style={styles.metricTopRow}>
+                        <View style={[styles.metricIconWrap, { backgroundColor: '#202020' }]}>
+                          <Ionicons name="time-outline" size={15} color="#F5C400" />
+                        </View>
+                        <Text style={[styles.metricNumber, { color: '#F5C400' }]}>{inProgressCount}</Text>
                       </View>
-                      <View style={styles.metricTextWrap}>
-                        <Text style={[styles.metricNumber, { color: '#2563EB' }]}>{inProgressCount}</Text>
-                        <Text style={[styles.metricLabel, { color: '#2563EB' }]}>IN PROGRESS</Text>
-                      </View>
+                      <Text style={[styles.metricLabel, { color: '#F5C400' }]}>
+                        {t('userDashboard.inProgressRequests', 'IN PROGRESS')}
+                      </Text>
                     </View>
                   </View>
 
                   <View style={styles.metricPairRow}>
                     <View style={[styles.metricCard, styles.metricCardPending]}>
-                      <View style={[styles.metricIconWrap, { backgroundColor: '#FFFBEB' }]}>
-                        <Ionicons name="hourglass-outline" size={18} color="#D97706" />
+                      <View style={styles.metricTopRow}>
+                        <View style={[styles.metricIconWrap, { backgroundColor: '#202020' }]}>
+                          <Ionicons name="hourglass-outline" size={15} color="#F5C400" />
+                        </View>
+                        <Text style={[styles.metricNumber, { color: '#F5C400' }]}>{pendingCount}</Text>
                       </View>
-                      <View style={styles.metricTextWrap}>
-                        <Text style={[styles.metricNumber, { color: '#D97706' }]}>{pendingCount}</Text>
-                        <Text style={[styles.metricLabel, { color: '#D97706' }]}>PENDING</Text>
-                      </View>
+                      <Text style={[styles.metricLabel, { color: '#F5C400' }]}>
+                        {t('userDashboard.pendingRequests', 'PENDING')}
+                      </Text>
                     </View>
 
                     <View style={[styles.metricCard, styles.metricCardSuccess]}>
-                      <View style={[styles.metricIconWrap, { backgroundColor: '#ECFDF5' }]}>
-                        <Ionicons name="checkmark-circle-outline" size={18} color="#059669" />
+                      <View style={styles.metricTopRow}>
+                        <View style={[styles.metricIconWrap, { backgroundColor: '#202020' }]}>
+                          <Ionicons name="checkmark-circle-outline" size={15} color="#F5C400" />
+                        </View>
+                        <Text style={[styles.metricNumber, { color: '#F5C400' }]}>{completedCount}</Text>
                       </View>
-                      <View style={styles.metricTextWrap}>
-                        <Text style={[styles.metricNumber, { color: '#059669' }]}>{completedCount}</Text>
-                        <Text style={[styles.metricLabel, { color: '#059669' }]}>RESOLVED</Text>
-                      </View>
+                      <Text style={[styles.metricLabel, { color: '#F5C400' }]}>
+                        {t('userDashboard.resolvedRequests', 'RESOLVED')}
+                      </Text>
                     </View>
                   </View>
                 </View>
               )}
 
+              {/* QR Equipment Scanner Hero Banner */}
+              <Pressable
+                style={({ pressed }) => [styles.qrHeroBanner, pressed && styles.pressed]}
+                onPress={() => setScannerVisible(true)}
+              >
+                <View style={styles.qrHeroIconBox}>
+                  <Ionicons name="qr-code" size={22} color="#111111" />
+                </View>
+                <View style={styles.qrHeroTextBox}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                    <Text style={styles.qrHeroTitle}>{t('equipment.scanBannerTitle', 'Fast Ticket with QR Code')}</Text>
+                    <View style={styles.qrFastPill}>
+                      <Text style={styles.qrFastPillText}>INSTANT</Text>
+                    </View>
+                  </View>
+                  <Text style={styles.qrHeroSub}>
+                    {t('equipment.scanBannerSub', 'Scan the QR tag on your fan, AC, or tap to auto-fill asset details')}
+                  </Text>
+                </View>
+                <View style={styles.qrHeroCameraBtn}>
+                  <Ionicons name="camera" size={16} color="#F5C400" />
+                </View>
+              </Pressable>
+
               {/* Quick Preset Shortcuts */}
               <View style={styles.sectionHeaderWrap}>
-                <Text style={styles.sectionTitle}>QUICK SERVICE PRESETS</Text>
+                <Text style={styles.sectionTitle}>{t('userDashboard.quickPresetsTitle', 'QUICK SERVICE PRESETS')}</Text>
               </View>
               <View style={styles.presetsWrap}>
                 {quickShortcuts.map((preset, index) => (
@@ -294,45 +345,40 @@ export default function UserDashboard() {
                 ))}
               </View>
 
-              {/* Segmented Filter Control */}
-              <View style={styles.filterSection}>
-                <View style={styles.segmentedControl}>
-                  <Pressable
-                    style={[styles.segmentTab, filter === 'all' && styles.activeSegmentTab]}
-                    onPress={() => setFilter('all')}
+              {/* Filter Chips matching Work Queue & Staff Dashboard */}
+              <View style={styles.filterChipRow}>
+                <Pressable
+                  style={[styles.filterChip, filter === 'all' && styles.filterChipActive]}
+                  onPress={() => setFilter('all')}
+                >
+                  <Text
+                    style={[styles.filterChipText, filter === 'all' && styles.filterChipTextActive]}
                   >
-                    <Text
-                      style={[styles.segmentText, filter === 'all' && styles.activeSegmentText]}
-                      numberOfLines={1}
-                    >
-                      All ({requests.length})
-                    </Text>
-                  </Pressable>
+                    {t('userDashboard.filterAll', 'All')} ({requests.length})
+                  </Text>
+                </Pressable>
 
-                  <Pressable
-                    style={[styles.segmentTab, filter === 'active' && styles.activeSegmentTab]}
-                    onPress={() => setFilter('active')}
+                <Pressable
+                  style={[styles.filterChip, filter === 'active' && styles.filterChipActive]}
+                  onPress={() => setFilter('active')}
+                >
+                  <Text
+                    style={[styles.filterChipText, filter === 'active' && styles.filterChipTextActive]}
                   >
-                    <Text
-                      style={[styles.segmentText, filter === 'active' && styles.activeSegmentText]}
-                      numberOfLines={1}
-                    >
-                      Active ({inProgressCount + pendingCount})
-                    </Text>
-                  </Pressable>
+                    {t('userDashboard.filterActive', 'Active')} ({inProgressCount + pendingCount})
+                  </Text>
+                </Pressable>
 
-                  <Pressable
-                    style={[styles.segmentTab, filter === 'completed' && styles.activeSegmentTab]}
-                    onPress={() => setFilter('completed')}
+                <Pressable
+                  style={[styles.filterChip, filter === 'completed' && styles.filterChipActive]}
+                  onPress={() => setFilter('completed')}
+                >
+                  <Text
+                    style={[styles.filterChipText, filter === 'completed' && styles.filterChipTextActive]}
                   >
-                    <Text
-                      style={[styles.segmentText, filter === 'completed' && styles.activeSegmentText]}
-                      numberOfLines={1}
-                    >
-                      Resolved ({completedCount})
-                    </Text>
-                  </Pressable>
-                </View>
+                    {t('userDashboard.filterResolved', 'Resolved')} ({completedCount})
+                  </Text>
+                </Pressable>
               </View>
             </View>
           }
@@ -340,25 +386,23 @@ export default function UserDashboard() {
             loading ? (
               <View style={styles.centerContainer}>
                 <ActivityIndicator size="large" color={ExecutiveTheme.colors.brandPrimary} />
-                <Text style={styles.loadingText}>Syncing maintenance orders...</Text>
+                <Text style={styles.loadingText}>{t('common.loading', 'Loading...')}</Text>
               </View>
             ) : (
               <View style={styles.emptyCard}>
                 <View style={styles.emptyIconCircle}>
                   <Ionicons name="document-text-outline" size={28} color={ExecutiveTheme.colors.brandPrimary} />
                 </View>
-                <Text style={styles.emptyTitle}>No Maintenance Orders</Text>
+                <Text style={styles.emptyTitle}>{t('userDashboard.emptyTitle', 'No Maintenance Requests')}</Text>
                 <Text style={styles.emptySub}>
-                  {filter === 'all'
-                    ? 'You have not submitted any maintenance requests yet.'
-                    : `No ${filter} requests found in this view.`}
+                  {t('userDashboard.emptySubtitle', "You haven't filed any facility tickets yet. Click below to submit your first request!")}
                 </Text>
                 {filter === 'all' && (
                   <Pressable
                     style={styles.emptyActionBtn}
                     onPress={() => router.push('/user/create-request')}
                   >
-                    <Text style={styles.emptyActionBtnText}>＋ Submit First Request</Text>
+                    <Text style={styles.emptyActionBtnText}>{t('userDashboard.createFirstRequest', '+ File First Request')}</Text>
                   </Pressable>
                 )}
               </View>
@@ -386,7 +430,7 @@ export default function UserDashboard() {
                         month: 'short',
                         day: 'numeric',
                       })
-                    : 'Today'}
+                    : t('common.today', 'Today')}
                 </Text>
               </View>
 
@@ -422,11 +466,11 @@ export default function UserDashboard() {
                 <View style={styles.assigneeRow}>
                   <Ionicons name="construct-outline" size={14} color={ExecutiveTheme.colors.textSecondary} />
                   <Text style={styles.assigneeName} numberOfLines={1}>
-                    {item.assignee?.full_name || 'Awaiting Technician'}
+                    {item.assignee?.full_name ? `${t('userDashboard.assignedTo', 'Assigned to')}: ${item.assignee.full_name}` : t('userDashboard.unassigned', 'Awaiting Staff Dispatch')}
                   </Text>
                 </View>
                 <View style={styles.viewDetailsRow}>
-                  <Text style={styles.viewDetailText}>View Details</Text>
+                  <Text style={styles.viewDetailText}>{t('common.viewDetails', 'View Details')}</Text>
                   <Ionicons name="chevron-forward" size={14} color={ExecutiveTheme.colors.brandPrimary} />
                 </View>
               </View>
@@ -437,6 +481,21 @@ export default function UserDashboard() {
 
       {/* 4-Tab Bottom Navigation with Vector Icons */}
       <AppBottomNav activeTab="home" role="user" />
+
+      {/* QR Scanner Modal */}
+      <QrScannerModal
+        visible={scannerVisible}
+        onClose={() => setScannerVisible(false)}
+        onScanSuccess={handleEquipmentScanned}
+        onOpenAssetDirectory={() => setAssetSheetVisible(true)}
+      />
+
+      {/* Printable QR Asset Tag Sheet Modal */}
+      <EquipmentQrSheetModal
+        visible={assetSheetVisible}
+        onClose={() => setAssetSheetVisible(false)}
+        onSelectEquipment={handleEquipmentScanned}
+      />
     </SafeAreaView>
   );
 }
@@ -446,60 +505,124 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: ExecutiveTheme.colors.background,
   },
+  qrHeroBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: ExecutiveTheme.colors.surface,
+    borderRadius: 12,
+    padding: 12,
+    borderWidth: 1.2,
+    borderColor: ExecutiveTheme.colors.border,
+    elevation: 2,
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 6,
+    gap: 10,
+    marginBottom: 10,
+  },
+  qrHeroIconBox: {
+    width: 38,
+    height: 38,
+    borderRadius: 10,
+    backgroundColor: ExecutiveTheme.colors.brandPrimary,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  qrHeroTextBox: {
+    flex: 1,
+  },
+  qrHeroTitle: {
+    fontSize: 13,
+    fontWeight: '800',
+    color: ExecutiveTheme.colors.textPrimary,
+  },
+  qrFastPill: {
+    backgroundColor: '#202020',
+    paddingHorizontal: 5,
+    paddingVertical: 2,
+    borderRadius: 4,
+    borderWidth: 1,
+    borderColor: '#F5C400',
+  },
+  qrFastPillText: {
+    fontSize: 9,
+    fontWeight: '900',
+    color: '#F5C400',
+    letterSpacing: 0.4,
+  },
+  qrHeroSub: {
+    fontSize: 10.5,
+    color: ExecutiveTheme.colors.textSecondary,
+    marginTop: 1.5,
+    lineHeight: 14,
+  },
+  qrHeroCameraBtn: {
+    width: 34,
+    height: 34,
+    borderRadius: 8,
+    backgroundColor: '#202020',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: '#2B2B2B',
+  },
   // Top Header Bar Wrapper with max-width centering
   headerWrapper: {
     backgroundColor: ExecutiveTheme.colors.surface,
     borderBottomWidth: 1,
-    borderBottomColor: ExecutiveTheme.colors.border,
+    borderBottomColor: ExecutiveTheme.colors.borderSubtle,
     width: '100%',
     alignItems: 'center',
+    paddingBottom: 8,
   },
   headerRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: 16,
-    paddingVertical: 12,
+    paddingVertical: 0,
     width: '100%',
     maxWidth: ExecutiveTheme.MaxContentWidth,
+    minHeight: 44,
   },
   userInfoGroup: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
+    gap: 10,
     flex: 1,
+    minWidth: 0,
+    paddingRight: 8,
   },
   avatarBadge: {
-    width: 42,
-    height: 42,
-    borderRadius: 13,
-    backgroundColor: ExecutiveTheme.colors.brandPrimary,
+    width: 36,
+    height: 36,
+    borderRadius: 10,
+    backgroundColor: '#2B2B2B',
+    borderWidth: 1,
+    borderColor: '#F5C400',
     alignItems: 'center',
     justifyContent: 'center',
-    elevation: 2,
-    shadowColor: '#4F46E5',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
   },
   avatarText: {
-    color: '#FFFFFF',
-    fontSize: 15,
+    color: '#F5C400',
+    fontSize: 13.5,
     fontWeight: '800',
-    letterSpacing: 0.5,
+    letterSpacing: 0.3,
   },
   userTextGroup: {
     flex: 1,
+    minWidth: 0,
     justifyContent: 'center',
   },
   greetingText: {
-    fontSize: 16,
+    fontSize: 14.5,
     fontWeight: '800',
     color: ExecutiveTheme.colors.textPrimary,
-    letterSpacing: -0.3,
+    letterSpacing: -0.2,
   },
   unitText: {
-    fontSize: 11.5,
+    fontSize: 11,
     color: ExecutiveTheme.colors.textSecondary,
     fontWeight: '500',
     marginTop: 1,
@@ -507,21 +630,21 @@ const styles = StyleSheet.create({
   newHeaderBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 5,
+    gap: 4,
     backgroundColor: ExecutiveTheme.colors.brandPrimary,
-    paddingHorizontal: 14,
-    height: 42,
-    borderRadius: 12,
+    paddingHorizontal: 12,
+    height: 36,
+    borderRadius: 10,
     elevation: 2,
-    shadowColor: '#4F46E5',
+    shadowColor: '#000000',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.15,
+    shadowOpacity: 0.25,
     shadowRadius: 4,
   },
   newHeaderBtnText: {
-    color: '#FFFFFF',
-    fontSize: 13,
-    fontWeight: '700',
+    color: '#111111',
+    fontSize: 12,
+    fontWeight: '800',
   },
   // Main Feed Wrapper with max-width centering
   mainFeedWrapper: {
@@ -547,41 +670,47 @@ const styles = StyleSheet.create({
   },
   metricCard: {
     flex: 1,
-    backgroundColor: ExecutiveTheme.colors.surface,
+    backgroundColor: '#262626',
     borderRadius: 14,
     padding: 12,
     borderWidth: 1,
-    borderColor: ExecutiveTheme.colors.border,
+    borderColor: '#333333',
+    elevation: 2,
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    justifyContent: 'center',
+  },
+  metricTopRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
-    minHeight: 68,
-    elevation: 2,
-    shadowColor: '#1E293B',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.04,
-    shadowRadius: 6,
+    justifyContent: 'space-between',
+    marginBottom: 4,
   },
   metricCardTotal: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: '#262626',
+    borderColor: '#333333',
   },
   metricCardProgress: {
-    backgroundColor: '#EFF6FF',
-    borderColor: '#BFDBFE',
+    backgroundColor: '#262626',
+    borderColor: '#333333',
   },
   metricCardPending: {
-    backgroundColor: '#FFFBEB',
-    borderColor: '#FDE68A',
+    backgroundColor: '#262626',
+    borderColor: '#333333',
   },
   metricCardSuccess: {
-    backgroundColor: '#ECFDF5',
-    borderColor: '#A7F3D0',
+    backgroundColor: '#2B2B2B',
+    borderColor: '#F5C400',
   },
   metricIconWrap: {
-    width: 36,
-    height: 36,
-    borderRadius: 10,
-    backgroundColor: ExecutiveTheme.colors.brandLight,
+    width: 28,
+    height: 28,
+    borderRadius: 8,
+    backgroundColor: '#1E1E1E',
+    borderWidth: 1,
+    borderColor: '#333333',
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -590,17 +719,16 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   metricNumber: {
-    fontSize: 18,
-    fontWeight: '800',
-    color: ExecutiveTheme.colors.textPrimary,
-    lineHeight: 22,
+    fontSize: 20,
+    fontWeight: '900',
+    color: '#FFFFFF',
+    lineHeight: 24,
   },
   metricLabel: {
-    fontSize: 9,
+    fontSize: 9.5,
     fontWeight: '800',
-    color: ExecutiveTheme.colors.textSecondary,
-    letterSpacing: 0.4,
-    marginTop: 2,
+    color: '#888888',
+    letterSpacing: 0.5,
   },
   // Quick Presets
   sectionHeaderWrap: {
@@ -638,9 +766,9 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: ExecutiveTheme.colors.border,
     elevation: 1,
-    shadowColor: '#1E293B',
+    shadowColor: '#000000',
     shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.04,
+    shadowOpacity: 0.2,
     shadowRadius: 3,
   },
   shortcutText: {
@@ -648,63 +776,55 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: ExecutiveTheme.colors.textPrimary,
   },
-  // Filter Tabs
-  filterSection: {
-    marginBottom: 12,
-  },
-  segmentedControl: {
+  filterChipRow: {
     flexDirection: 'row',
-    width: '100%',
-    backgroundColor: ExecutiveTheme.colors.backgroundSubtle,
-    borderRadius: 12,
-    padding: 3,
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  filterChip: {
+    paddingHorizontal: 14,
+    minHeight: 40,
+    justifyContent: 'center',
+    borderRadius: 10,
+    backgroundColor: ExecutiveTheme.colors.surface,
     borderWidth: 1,
     borderColor: ExecutiveTheme.colors.border,
-    minHeight: 44,
   },
-  segmentTab: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderRadius: 9,
-    minHeight: 38,
+  filterChipActive: {
+    backgroundColor: ExecutiveTheme.colors.brandPrimary,
+    borderColor: ExecutiveTheme.colors.brandPrimary,
   },
-  activeSegmentTab: {
-    backgroundColor: ExecutiveTheme.colors.surface,
-    elevation: 2,
-    shadowColor: '#1E293B',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.06,
-    shadowRadius: 3,
-  },
-  segmentText: {
+  filterChipText: {
     fontSize: 12,
     fontWeight: '600',
     color: ExecutiveTheme.colors.textSecondary,
   },
-  activeSegmentText: {
-    color: ExecutiveTheme.colors.brandPrimary,
+  filterChipTextActive: {
+    color: '#111111',
     fontWeight: '800',
   },
-  // Request Cards List (Bounded to maxWidth: 680)
+  flatList: {
+    width: '100%',
+    maxWidth: ExecutiveTheme.MaxContentWidth,
+    alignSelf: 'center',
+  },
   listContent: {
     paddingHorizontal: 16,
     paddingBottom: 90,
     gap: 12,
     width: '100%',
-    maxWidth: ExecutiveTheme.MaxContentWidth,
   },
   requestCard: {
     backgroundColor: ExecutiveTheme.colors.surface,
-    borderRadius: 16,
-    padding: 16,
+    borderRadius: 12,
+    padding: 14,
     borderWidth: 1,
     borderColor: ExecutiveTheme.colors.border,
-    elevation: 2,
-    shadowColor: '#1E293B',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.04,
-    shadowRadius: 8,
+    elevation: 1,
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.2,
+    shadowRadius: 5,
   },
   cardPressed: {
     opacity: 0.88,
@@ -714,64 +834,64 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 8,
+    marginBottom: 6,
   },
   badgesRow: {
     flexDirection: 'row',
     gap: 6,
   },
   cardDate: {
-    fontSize: 11.5,
+    fontSize: 11,
     color: ExecutiveTheme.colors.textSecondary,
     fontWeight: '600',
   },
   cardTitle: {
-    fontSize: 15,
+    fontSize: 14.5,
     fontWeight: '800',
     color: ExecutiveTheme.colors.textPrimary,
     letterSpacing: -0.2,
-    marginBottom: 4,
+    marginBottom: 3,
   },
   cardDesc: {
-    fontSize: 13,
+    fontSize: 12.5,
     color: ExecutiveTheme.colors.textSecondary,
-    lineHeight: 18,
-    marginBottom: 10,
+    lineHeight: 17,
+    marginBottom: 8,
   },
   thumbnailRow: {
     flexDirection: 'row',
     gap: 6,
-    marginBottom: 10,
+    marginBottom: 8,
   },
   thumbImage: {
-    width: 46,
-    height: 46,
+    width: 44,
+    height: 44,
     borderRadius: 8,
-    backgroundColor: ExecutiveTheme.colors.backgroundSubtle,
-    borderWidth: 0.8,
+    backgroundColor: '#2B2B2B',
+    borderWidth: 1,
     borderColor: ExecutiveTheme.colors.border,
   },
   morePhotosBadge: {
-    width: 46,
-    height: 46,
+    width: 44,
+    height: 44,
     borderRadius: 8,
-    backgroundColor: ExecutiveTheme.colors.backgroundSubtle,
+    backgroundColor: '#2B2B2B',
     alignItems: 'center',
     justifyContent: 'center',
-    borderWidth: 0.8,
+    borderWidth: 1,
     borderColor: ExecutiveTheme.colors.border,
   },
   morePhotosText: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: ExecutiveTheme.colors.textSecondary,
+    fontSize: 11.5,
+    fontWeight: '800',
+    color: '#F5C400',
   },
   cardFooter: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingTop: 10,
-    borderTopWidth: 0.8,
+    paddingTop: 8,
+    borderTopWidth: 1,
     borderTopColor: ExecutiveTheme.colors.borderSubtle,
   },
   assigneeRow: {
@@ -781,7 +901,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   assigneeName: {
-    fontSize: 12,
+    fontSize: 11.5,
     fontWeight: '600',
     color: ExecutiveTheme.colors.textSecondary,
   },
@@ -789,16 +909,17 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 3,
-    minHeight: 40,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 8,
-    backgroundColor: ExecutiveTheme.colors.brandLight,
+    height: 30,
+    paddingHorizontal: 10,
+    borderRadius: 6,
+    backgroundColor: '#202020',
+    borderWidth: 1,
+    borderColor: '#2B2B2B',
   },
   viewDetailText: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: ExecutiveTheme.colors.brandPrimary,
+    fontSize: 11.5,
+    fontWeight: '800',
+    color: '#F5C400',
   },
   // Empty & Loading States
   centerContainer: {
@@ -849,9 +970,9 @@ const styles = StyleSheet.create({
     borderRadius: 11,
   },
   emptyActionBtnText: {
-    color: '#FFFFFF',
+    color: '#111111',
     fontSize: 13,
-    fontWeight: '700',
+    fontWeight: '800',
   },
   pressed: {
     opacity: 0.75,

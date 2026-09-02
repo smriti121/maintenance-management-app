@@ -136,3 +136,63 @@ CREATE POLICY "Time logs viewable by authenticated users"
 
 CREATE POLICY "Time logs insertable by authenticated users" 
   ON public.maintenance_time_logs FOR INSERT TO authenticated WITH CHECK (true);
+
+-- ==============================================================================
+-- 6. EQUIPMENT / ASSETS TABLE (For QR Code Identification)
+-- ==============================================================================
+CREATE TABLE IF NOT EXISTS public.equipment (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  product_id TEXT UNIQUE NOT NULL, -- e.g. 'FAN-204-01'
+  name TEXT NOT NULL,              -- e.g. 'Ceiling Fan'
+  category TEXT NOT NULL,          -- e.g. 'Electrical', 'HVAC', 'Plumbing', 'General'
+  location TEXT NOT NULL,          -- e.g. 'Room 204'
+  model TEXT,                      -- e.g. 'XYZ-500'
+  serial_number TEXT,              -- e.g. 'SN-8849204'
+  installation_date DATE,
+  warranty_status TEXT DEFAULT 'under_warranty' CHECK (warranty_status IN ('under_warranty', 'out_of_warranty', 'not_applicable')),
+  status TEXT DEFAULT 'active' CHECK (status IN ('active', 'in_maintenance', 'decommissioned')),
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Index for rapid lookup by QR Code Product ID
+CREATE INDEX IF NOT EXISTS idx_equipment_product_id ON public.equipment(product_id);
+CREATE INDEX IF NOT EXISTS idx_equipment_location ON public.equipment(location);
+CREATE INDEX IF NOT EXISTS idx_equipment_category ON public.equipment(category);
+
+-- Add optional equipment reference columns to maintenance_requests
+ALTER TABLE public.maintenance_requests 
+  ADD COLUMN IF NOT EXISTS equipment_id UUID REFERENCES public.equipment(id) ON DELETE SET NULL,
+  ADD COLUMN IF NOT EXISTS product_id TEXT;
+
+-- Row Level Security (RLS)
+ALTER TABLE public.equipment ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Equipment is viewable by authenticated and anon users" 
+  ON public.equipment FOR SELECT TO anon, authenticated USING (true);
+
+CREATE POLICY "Equipment is insertable by authenticated and anon users" 
+  ON public.equipment FOR INSERT TO anon, authenticated WITH CHECK (true);
+
+CREATE POLICY "Equipment is updatable by authenticated and anon users" 
+  ON public.equipment FOR UPDATE TO anon, authenticated USING (true);
+
+-- Seed Data: Pre-configured Facility Equipment
+INSERT INTO public.equipment (product_id, name, category, location, model, serial_number, warranty_status, status)
+VALUES 
+  ('FAN-204-01', 'Ceiling Fan', 'Electrical', 'Room 204', 'XYZ-500', 'SN-FAN-88492', 'under_warranty', 'active'),
+  ('AC-101-02', 'Air Conditioner Inverter', 'HVAC', 'Living Room 101', 'DAIKIN-FTKM50', 'SN-AC-10924', 'under_warranty', 'active'),
+  ('LIGHT-305-01', 'LED Ceiling Fixture Light', 'Electrical', 'Bedroom 305', 'PHILIPS-PL-18W', 'SN-LT-33019', 'under_warranty', 'active'),
+  ('PLUMB-102-04', 'Mixer Tap & Pressure Valve', 'Plumbing', 'Kitchen 102', 'JAQUAR-FUS-102', 'SN-PL-55102', 'under_warranty', 'active'),
+  ('GEYSER-204-01', 'Instant Water Heater Geyser', 'Plumbing', 'Room 204 Bathroom', 'BAJAJ-CAL-15L', 'SN-GY-20411', 'under_warranty', 'active'),
+  ('MCB-204-01', 'Main Power Distribution MCB', 'Electrical', 'Room 204 Main Panel', 'SCHNEIDER-ACTI9', 'SN-MCB-77204', 'under_warranty', 'active'),
+  ('RO-102-01', 'Water Purifier RO Plant', 'General', 'Kitchen 102', 'KENT-GRAND-PLUS', 'SN-RO-99102', 'out_of_warranty', 'active')
+ON CONFLICT (product_id) DO UPDATE SET
+  name = EXCLUDED.name,
+  category = EXCLUDED.category,
+  location = EXCLUDED.location,
+  model = EXCLUDED.model,
+  serial_number = EXCLUDED.serial_number,
+  warranty_status = EXCLUDED.warranty_status,
+  updated_at = NOW();
+

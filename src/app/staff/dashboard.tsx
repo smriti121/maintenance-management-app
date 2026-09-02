@@ -12,6 +12,7 @@ import {
   StatusBar,
   StyleSheet,
   Text,
+  TextInput,
   useWindowDimensions,
   View,
 } from 'react-native';
@@ -19,18 +20,21 @@ import {
 import { AppBottomNav } from '@/components/app-bottom-nav';
 import { PriorityBadge, StatusBadge } from '@/components/status-badge';
 import { ExecutiveTheme } from '@/constants/theme';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useLanguage } from '@/context/language-context';
 import { supabase } from '@/lib/supabase';
 import { MaintenanceService } from '@/services/maintenance-service';
 import { MaintenanceRequest, Profile } from '@/types/maintenance';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 export default function StaffDashboard() {
   const params = useLocalSearchParams<{ filter?: 'active' | 'completed' | 'all' }>();
   const [staffProfile, setStaffProfile] = useState<Profile | null>(null);
   const [tasks, setTasks] = useState<MaintenanceRequest[]>([]);
   const [filter, setFilter] = useState<'active' | 'completed' | 'all'>(params.filter || 'all');
+  const [searchQuery, setSearchQuery] = useState('');
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const { t } = useLanguage();
 
   useEffect(() => {
     if (params.filter) {
@@ -105,12 +109,28 @@ export default function StaffDashboard() {
   const urgentTasks = activeTasks.filter((t) => t.priority === 'urgent' || t.priority === 'high');
 
   const filteredTasks = tasks.filter((task) => {
+    // 1. Status Filter
     if (filter === 'active') {
-      return ['assigned', 'in_progress', 'on_hold', 'pending'].includes(task.status || 'pending');
+      if (!['assigned', 'in_progress', 'on_hold', 'pending'].includes(task.status || 'pending')) {
+        return false;
+      }
+    } else if (filter === 'completed') {
+      if (task.status !== 'completed') {
+        return false;
+      }
     }
-    if (filter === 'completed') {
-      return task.status === 'completed';
+
+    // 2. Search Query Matching
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase().trim();
+      const matchTitle = (task.title || '').toLowerCase().includes(q);
+      const matchDesc = (task.description || '').toLowerCase().includes(q);
+      const matchResident = (task.requester?.full_name || task.requester?.email || '').toLowerCase().includes(q);
+      const matchRef = (task.id || '').toLowerCase().includes(q);
+      const matchEquip = (task.equipment?.name || '').toLowerCase().includes(q);
+      if (!matchTitle && !matchDesc && !matchResident && !matchRef && !matchEquip) return false;
     }
+
     return true;
   });
 
@@ -118,19 +138,16 @@ export default function StaffDashboard() {
   const isMobile = width < 640;
 
   const insets = useSafeAreaInsets();
-  const topPadding = Math.max(
-    insets.top,
-    Platform.OS === 'android' ? (StatusBar.currentHeight || 28) : 10
-  );
+  const topPadding = Platform.OS === 'web' ? 10 : Math.max(insets.top, Platform.OS === 'android' ? (StatusBar.currentHeight || 24) : 10) + 4;
 
   return (
     <SafeAreaView style={styles.screen}>
-      <StatusBar barStyle="dark-content" backgroundColor={ExecutiveTheme.colors.surface} />
+      <StatusBar barStyle="light-content" backgroundColor={ExecutiveTheme.colors.surface} />
 
       {/* Top App Bar Header Wrapper */}
-      <View style={[styles.headerWrapper, { paddingTop: topPadding + 6 }]}>
+      <View style={[styles.headerWrapper, { paddingTop: topPadding }]}>
         <View style={styles.headerRow}>
-          <View style={styles.userInfoGroup}>
+          <View style={styles.headerLeft}>
             <View style={styles.avatarBadge}>
               <Text style={styles.avatarText}>
                 {staffProfile?.full_name
@@ -143,12 +160,12 @@ export default function StaffDashboard() {
                   : 'TC'}
               </Text>
             </View>
-            <View style={styles.userTextGroup}>
-              <Text style={styles.greetingText} numberOfLines={1}>
-                {staffProfile?.full_name || 'Staff Technician'}
+            <View>
+              <Text style={styles.headerTitle} numberOfLines={1}>
+                {staffProfile?.full_name || t('staffDashboard.greetingFallback', 'Staff Technician')}
               </Text>
-              <Text style={styles.unitText} numberOfLines={1}>
-                Certified Maintenance Engineering Staff
+              <Text style={styles.headerSubtitle} numberOfLines={1}>
+                {t('staffDashboard.verifiedStaff', 'Certified Maintenance Engineering Staff')}
               </Text>
             </View>
           </View>
@@ -157,7 +174,7 @@ export default function StaffDashboard() {
           <View style={styles.headerRightGroup}>
             <View style={styles.statusPill}>
               <View style={styles.statusDot} />
-              <Text style={styles.statusPillText}>On Duty</Text>
+              <Text style={styles.statusPillText}>{t('staffDashboard.onDuty', 'On Duty')}</Text>
             </View>
             <Pressable
               style={({ pressed }) => [styles.refreshIconBtn, pressed && styles.pressed]}
@@ -176,6 +193,7 @@ export default function StaffDashboard() {
       {/* Centered Scrollable Main Content Container */}
       <View style={styles.mainFeedWrapper}>
         <FlatList
+          style={styles.flatList}
           data={filteredTasks}
           keyExtractor={(item) => item.id}
           contentContainerStyle={styles.listContent}
@@ -196,88 +214,104 @@ export default function StaffDashboard() {
               {!isMobile ? (
                 <View style={styles.metricsRow}>
                   <View style={[styles.metricCard, styles.metricCardAssigned]}>
-                    <View style={styles.metricIconWrap}>
-                      <Ionicons name="file-tray-full-outline" size={18} color={ExecutiveTheme.colors.brandPrimary} />
+                    <View style={styles.metricTopRow}>
+                      <View style={[styles.metricIconWrap, { backgroundColor: '#202020' }]}>
+                        <Ionicons name="file-tray-full-outline" size={15} color="#F5C400" />
+                      </View>
+                      <Text style={[styles.metricNumber, { color: '#F5C400' }]}>{assignedCount}</Text>
                     </View>
-                    <View style={styles.metricTextWrap}>
-                      <Text style={styles.metricNumber}>{assignedCount}</Text>
-                      <Text style={styles.metricLabel}>ASSIGNED</Text>
-                    </View>
+                    <Text style={[styles.metricLabel, { color: '#F5C400' }]}>
+                      {t('staffDashboard.assignedTasks', 'ASSIGNED')}
+                    </Text>
                   </View>
 
                   <View style={[styles.metricCard, styles.metricCardProgress]}>
-                    <View style={[styles.metricIconWrap, { backgroundColor: '#EFF6FF' }]}>
-                      <Ionicons name="construct-outline" size={18} color="#2563EB" />
+                    <View style={styles.metricTopRow}>
+                      <View style={[styles.metricIconWrap, { backgroundColor: '#202020' }]}>
+                        <Ionicons name="construct-outline" size={15} color="#F5C400" />
+                      </View>
+                      <Text style={[styles.metricNumber, { color: '#F5C400' }]}>{inProgressCount}</Text>
                     </View>
-                    <View style={styles.metricTextWrap}>
-                      <Text style={[styles.metricNumber, { color: '#2563EB' }]}>{inProgressCount}</Text>
-                      <Text style={[styles.metricLabel, { color: '#2563EB' }]}>IN PROGRESS</Text>
-                    </View>
+                    <Text style={[styles.metricLabel, { color: '#F5C400' }]}>
+                      {t('staffDashboard.inProgressTasks', 'IN PROGRESS')}
+                    </Text>
                   </View>
 
                   <View style={[styles.metricCard, styles.metricCardHold]}>
-                    <View style={[styles.metricIconWrap, { backgroundColor: '#FFFBEB' }]}>
-                      <Ionicons name="pause-circle-outline" size={18} color="#D97706" />
+                    <View style={styles.metricTopRow}>
+                      <View style={[styles.metricIconWrap, { backgroundColor: '#202020' }]}>
+                        <Ionicons name="pause-circle-outline" size={15} color="#F5C400" />
+                      </View>
+                      <Text style={[styles.metricNumber, { color: '#F5C400' }]}>{onHoldCount}</Text>
                     </View>
-                    <View style={styles.metricTextWrap}>
-                      <Text style={[styles.metricNumber, { color: '#D97706' }]}>{onHoldCount}</Text>
-                      <Text style={[styles.metricLabel, { color: '#D97706' }]}>ON HOLD</Text>
-                    </View>
+                    <Text style={[styles.metricLabel, { color: '#F5C400' }]}>
+                      {t('staffDashboard.onHoldTasks', 'ON HOLD')}
+                    </Text>
                   </View>
 
                   <View style={[styles.metricCard, styles.metricCardSuccess]}>
-                    <View style={[styles.metricIconWrap, { backgroundColor: '#ECFDF5' }]}>
-                      <Ionicons name="checkmark-circle-outline" size={18} color="#059669" />
+                    <View style={styles.metricTopRow}>
+                      <View style={[styles.metricIconWrap, { backgroundColor: '#202020' }]}>
+                        <Ionicons name="checkmark-circle-outline" size={15} color="#F5C400" />
+                      </View>
+                      <Text style={[styles.metricNumber, { color: '#F5C400' }]}>{completedCount}</Text>
                     </View>
-                    <View style={styles.metricTextWrap}>
-                      <Text style={[styles.metricNumber, { color: '#059669' }]}>{completedCount}</Text>
-                      <Text style={[styles.metricLabel, { color: '#059669' }]}>RESOLVED</Text>
-                    </View>
+                    <Text style={[styles.metricLabel, { color: '#F5C400' }]}>
+                      {t('staffDashboard.resolvedTasks', 'RESOLVED')}
+                    </Text>
                   </View>
                 </View>
               ) : (
                 <View style={styles.metricsContainer}>
                   <View style={styles.metricPairRow}>
                     <View style={[styles.metricCard, styles.metricCardAssigned]}>
-                      <View style={styles.metricIconWrap}>
-                        <Ionicons name="file-tray-full-outline" size={18} color={ExecutiveTheme.colors.brandPrimary} />
+                      <View style={styles.metricTopRow}>
+                        <View style={[styles.metricIconWrap, { backgroundColor: '#202020' }]}>
+                          <Ionicons name="file-tray-full-outline" size={15} color="#F5C400" />
+                        </View>
+                        <Text style={[styles.metricNumber, { color: '#F5C400' }]}>{assignedCount}</Text>
                       </View>
-                      <View style={styles.metricTextWrap}>
-                        <Text style={styles.metricNumber}>{assignedCount}</Text>
-                        <Text style={styles.metricLabel}>ASSIGNED</Text>
-                      </View>
+                      <Text style={[styles.metricLabel, { color: '#F5C400' }]}>
+                        {t('staffDashboard.assignedTasks', 'ASSIGNED')}
+                      </Text>
                     </View>
 
                     <View style={[styles.metricCard, styles.metricCardProgress]}>
-                      <View style={[styles.metricIconWrap, { backgroundColor: '#EFF6FF' }]}>
-                        <Ionicons name="construct-outline" size={18} color="#2563EB" />
+                      <View style={styles.metricTopRow}>
+                        <View style={[styles.metricIconWrap, { backgroundColor: '#202020' }]}>
+                          <Ionicons name="construct-outline" size={15} color="#F5C400" />
+                        </View>
+                        <Text style={[styles.metricNumber, { color: '#F5C400' }]}>{inProgressCount}</Text>
                       </View>
-                      <View style={styles.metricTextWrap}>
-                        <Text style={[styles.metricNumber, { color: '#2563EB' }]}>{inProgressCount}</Text>
-                        <Text style={[styles.metricLabel, { color: '#2563EB' }]}>IN PROGRESS</Text>
-                      </View>
+                      <Text style={[styles.metricLabel, { color: '#F5C400' }]}>
+                        {t('staffDashboard.inProgressTasks', 'IN PROGRESS')}
+                      </Text>
                     </View>
                   </View>
 
                   <View style={styles.metricPairRow}>
                     <View style={[styles.metricCard, styles.metricCardHold]}>
-                      <View style={[styles.metricIconWrap, { backgroundColor: '#FFFBEB' }]}>
-                        <Ionicons name="pause-circle-outline" size={18} color="#D97706" />
+                      <View style={styles.metricTopRow}>
+                        <View style={[styles.metricIconWrap, { backgroundColor: '#202020' }]}>
+                          <Ionicons name="pause-circle-outline" size={15} color="#F5C400" />
+                        </View>
+                        <Text style={[styles.metricNumber, { color: '#F5C400' }]}>{onHoldCount}</Text>
                       </View>
-                      <View style={styles.metricTextWrap}>
-                        <Text style={[styles.metricNumber, { color: '#D97706' }]}>{onHoldCount}</Text>
-                        <Text style={[styles.metricLabel, { color: '#D97706' }]}>ON HOLD</Text>
-                      </View>
+                      <Text style={[styles.metricLabel, { color: '#F5C400' }]}>
+                        {t('staffDashboard.onHoldTasks', 'ON HOLD')}
+                      </Text>
                     </View>
 
                     <View style={[styles.metricCard, styles.metricCardSuccess]}>
-                      <View style={[styles.metricIconWrap, { backgroundColor: '#ECFDF5' }]}>
-                        <Ionicons name="checkmark-circle-outline" size={18} color="#059669" />
+                      <View style={styles.metricTopRow}>
+                        <View style={[styles.metricIconWrap, { backgroundColor: '#202020' }]}>
+                          <Ionicons name="checkmark-circle-outline" size={15} color="#F5C400" />
+                        </View>
+                        <Text style={[styles.metricNumber, { color: '#F5C400' }]}>{completedCount}</Text>
                       </View>
-                      <View style={styles.metricTextWrap}>
-                        <Text style={[styles.metricNumber, { color: '#059669' }]}>{completedCount}</Text>
-                        <Text style={[styles.metricLabel, { color: '#059669' }]}>RESOLVED</Text>
-                      </View>
+                      <Text style={[styles.metricLabel, { color: '#F5C400' }]}>
+                        {t('staffDashboard.resolvedTasks', 'RESOLVED')}
+                      </Text>
                     </View>
                   </View>
                 </View>
@@ -286,55 +320,67 @@ export default function StaffDashboard() {
               {/* Urgent Priority Alert Banner */}
               {urgentTasks.length > 0 && (
                 <View style={styles.urgentBanner}>
-                  <Ionicons name="alert-circle" size={20} color="#E11D48" />
+                  <Ionicons name="alert-circle" size={18} color="#F5C400" />
                   <View style={styles.urgentTextGroup}>
-                    <Text style={styles.urgentTitle}>Priority Dispatch Alert</Text>
+                    <Text style={styles.urgentTitle}>{t('staffDashboard.urgentBannerTitle', 'Priority Dispatch Alert')}</Text>
                     <Text style={styles.urgentSubtitle}>
-                      {urgentTasks.length} urgent/high priority order(s) require prompt attention.
+                      {urgentTasks.length} {t('staffDashboard.urgentBannerSub', 'urgent/high priority order(s) require prompt attention.')}
                     </Text>
                   </View>
                 </View>
               )}
 
-              {/* Segmented Filter Control */}
-              <View style={styles.filterSection}>
-                <View style={styles.segmentedControl}>
-                  <Pressable
-                    style={[styles.segmentTab, filter === 'active' && styles.activeSegmentTab]}
-                    onPress={() => setFilter('active')}
-                  >
-                    <Text
-                      style={[styles.segmentText, filter === 'active' && styles.activeSegmentText]}
-                      numberOfLines={1}
-                    >
-                      Active Queue ({activeTasks.length})
-                    </Text>
+              {/* Search Bar matching Work Queue */}
+              <View style={styles.searchBar}>
+                <Ionicons name="search-outline" size={18} color={ExecutiveTheme.colors.textMuted} />
+                <TextInput
+                  style={styles.searchInput}
+                  placeholder={t('staffDashboard.searchPlaceholder', 'Search assigned orders, residents, or REF #')}
+                  placeholderTextColor={ExecutiveTheme.colors.textMuted}
+                  value={searchQuery}
+                  onChangeText={setSearchQuery}
+                />
+                {searchQuery.length > 0 && (
+                  <Pressable onPress={() => setSearchQuery('')} hitSlop={8}>
+                    <Ionicons name="close-circle" size={18} color={ExecutiveTheme.colors.textMuted} />
                   </Pressable>
+                )}
+              </View>
 
-                  <Pressable
-                    style={[styles.segmentTab, filter === 'completed' && styles.activeSegmentTab]}
-                    onPress={() => setFilter('completed')}
+              {/* Filter Chips matching Work Queue */}
+              <View style={styles.filterChipRow}>
+                <Pressable
+                  style={[styles.filterChip, filter === 'active' && styles.filterChipActive]}
+                  onPress={() => setFilter('active')}
+                >
+                  <Text
+                    style={[styles.filterChipText, filter === 'active' && styles.filterChipTextActive]}
                   >
-                    <Text
-                      style={[styles.segmentText, filter === 'completed' && styles.activeSegmentText]}
-                      numberOfLines={1}
-                    >
-                      Resolved ({completedCount})
-                    </Text>
-                  </Pressable>
+                    {t('staffDashboard.activeQueue', 'Active Queue')} ({activeTasks.length})
+                  </Text>
+                </Pressable>
 
-                  <Pressable
-                    style={[styles.segmentTab, filter === 'all' && styles.activeSegmentTab]}
-                    onPress={() => setFilter('all')}
+                <Pressable
+                  style={[styles.filterChip, filter === 'completed' && styles.filterChipActive]}
+                  onPress={() => setFilter('completed')}
+                >
+                  <Text
+                    style={[styles.filterChipText, filter === 'completed' && styles.filterChipTextActive]}
                   >
-                    <Text
-                      style={[styles.segmentText, filter === 'all' && styles.activeSegmentText]}
-                      numberOfLines={1}
-                    >
-                      All Orders ({tasks.length})
-                    </Text>
-                  </Pressable>
-                </View>
+                    {t('staffDashboard.resolvedTab', 'Resolved')} ({completedCount})
+                  </Text>
+                </Pressable>
+
+                <Pressable
+                  style={[styles.filterChip, filter === 'all' && styles.filterChipActive]}
+                  onPress={() => setFilter('all')}
+                >
+                  <Text
+                    style={[styles.filterChipText, filter === 'all' && styles.filterChipTextActive]}
+                  >
+                    {t('staffDashboard.allOrdersTab', 'All Orders')} ({tasks.length})
+                  </Text>
+                </Pressable>
               </View>
             </View>
           }
@@ -342,18 +388,18 @@ export default function StaffDashboard() {
             loading ? (
               <View style={styles.centerContainer}>
                 <ActivityIndicator size="large" color={ExecutiveTheme.colors.brandPrimary} />
-                <Text style={styles.loadingText}>Syncing dispatch queue...</Text>
+                <Text style={styles.loadingText}>{t('common.loading', 'Loading...')}</Text>
               </View>
             ) : (
               <View style={styles.emptyCard}>
                 <View style={styles.emptyIconCircle}>
                   <Ionicons name="checkmark-done-outline" size={28} color={ExecutiveTheme.colors.brandPrimary} />
                 </View>
-                <Text style={styles.emptyTitle}>Work Queue Clear</Text>
+                <Text style={styles.emptyTitle}>{t('staffDashboard.emptyTitle', 'Work Queue Clear')}</Text>
                 <Text style={styles.emptySub}>
                   {filter === 'active'
-                    ? 'No active maintenance tasks in your dispatch queue.'
-                    : `No ${filter} work orders recorded.`}
+                    ? t('staffDashboard.emptySub', 'No active maintenance tasks in your dispatch queue.')
+                    : t('staffDashboard.emptyFilteredSub', 'No work orders recorded for this filter.')}
                 </Text>
               </View>
             )
@@ -379,23 +425,34 @@ export default function StaffDashboard() {
                         month: 'short',
                         day: 'numeric',
                       })
-                    : 'Today'}
+                    : t('common.today', 'Today')}
                 </Text>
               </View>
 
               <Text style={styles.taskTitle} numberOfLines={2}>
                 {item.title}
               </Text>
-              <Text style={styles.taskDesc} numberOfLines={2}>
-                {item.description}
-              </Text>
-
-              {/* Resident Info Box */}
-              <View style={styles.residentBox}>
-                <Text style={styles.residentLabel}>RESIDENT:</Text>
-                <Text style={styles.residentName}>
-                  {item.requester?.full_name || item.requester?.email || 'Resident'}
+              {item.description ? (
+                <Text style={styles.taskDesc} numberOfLines={2}>
+                  {item.description}
                 </Text>
+              ) : null}
+
+              {/* Clean Resident Info Row */}
+              <View style={styles.residentBox}>
+                <View style={styles.residentAvatarMini}>
+                  <Ionicons name="person" size={11} color={ExecutiveTheme.colors.brandPrimary} />
+                </View>
+                <Text style={styles.residentName}>
+                  {item.requester?.full_name || item.requester?.email || t('auth.resident', 'Resident')}
+                </Text>
+                {item.equipment?.name && (
+                  <>
+                    <Text style={styles.dotSeparator}>•</Text>
+                    <Ionicons name="hardware-chip-outline" size={12} color={ExecutiveTheme.colors.textSecondary} />
+                    <Text style={styles.equipmentNameText} numberOfLines={1}>{item.equipment.name}</Text>
+                  </>
+                )}
               </View>
 
               {item.photos && item.photos.length > 0 && (
@@ -421,7 +478,7 @@ export default function StaffDashboard() {
                   REF: #{(item.id || '').slice(0, 8).toUpperCase()}
                 </Text>
                 <View style={styles.openWorkspaceChip}>
-                  <Text style={styles.openWorkspaceText}>Open Workspace</Text>
+                  <Text style={styles.openWorkspaceText}>{t('common.openWorkspace', 'Open Workspace')}</Text>
                   <Ionicons name="chevron-forward" size={13} color="#FFFFFF" />
                 </View>
               </View>
@@ -430,7 +487,7 @@ export default function StaffDashboard() {
         />
       </View>
 
-      <AppBottomNav activeTab="home" role="maintenance_staff" />
+      <AppBottomNav activeTab="home" isStaff={true} />
     </SafeAreaView>
   );
 }
@@ -456,42 +513,38 @@ const styles = StyleSheet.create({
     width: '100%',
     maxWidth: ExecutiveTheme.MaxContentWidth,
   },
-  userInfoGroup: {
+  headerLeft: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
+    gap: 10,
     flex: 1,
+    minWidth: 0,
+    paddingRight: 8,
   },
   avatarBadge: {
-    width: 42,
-    height: 42,
-    borderRadius: 13,
-    backgroundColor: ExecutiveTheme.colors.brandPrimary,
+    width: 38,
+    height: 38,
+    borderRadius: 12,
+    backgroundColor: '#262626',
+    borderWidth: 1,
+    borderColor: '#F5C400',
     alignItems: 'center',
     justifyContent: 'center',
-    elevation: 2,
-    shadowColor: '#4F46E5',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
   },
   avatarText: {
-    color: '#FFFFFF',
-    fontSize: 15,
+    color: '#F5C400',
+    fontSize: 14,
     fontWeight: '800',
-    letterSpacing: 0.5,
+    letterSpacing: 0.3,
   },
-  userTextGroup: {
-    flex: 1,
-  },
-  greetingText: {
-    fontSize: 16,
+  headerTitle: {
+    fontSize: 15,
     fontWeight: '800',
     color: ExecutiveTheme.colors.textPrimary,
     letterSpacing: -0.3,
   },
-  unitText: {
-    fontSize: 11.5,
+  headerSubtitle: {
+    fontSize: 11,
     color: ExecutiveTheme.colors.textSecondary,
     fontWeight: '500',
     marginTop: 1,
@@ -505,29 +558,29 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-    backgroundColor: '#ECFDF5',
-    paddingHorizontal: 10,
-    paddingVertical: 5,
+    backgroundColor: '#1E1E1E',
+    paddingHorizontal: 9,
+    paddingVertical: 4,
     borderRadius: 20,
     borderWidth: 1,
-    borderColor: '#A7F3D0',
+    borderColor: '#333333',
   },
   statusDot: {
-    width: 7,
-    height: 7,
-    borderRadius: 3.5,
-    backgroundColor: '#10B981',
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: '#F5C400',
   },
   statusPillText: {
-    fontSize: 11.5,
+    fontSize: 11,
     fontWeight: '700',
-    color: '#047857',
+    color: '#F5C400',
   },
   refreshIconBtn: {
     width: 34,
     height: 34,
     borderRadius: 10,
-    backgroundColor: ExecutiveTheme.colors.backgroundSubtle,
+    backgroundColor: ExecutiveTheme.colors.surfaceElevated,
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1,
@@ -543,57 +596,69 @@ const styles = StyleSheet.create({
   },
   dashboardHeader: {
     paddingTop: 14,
+    marginBottom: 10,
+    gap: 10,
   },
   metricsContainer: {
     gap: 10,
-    marginBottom: 14,
+    marginBottom: 10,
   },
   metricsRow: {
     flexDirection: 'row',
-    gap: 10,
-    marginBottom: 14,
+    gap: 8,
+    marginBottom: 10,
   },
   metricPairRow: {
     flexDirection: 'row',
-    gap: 10,
+    gap: 8,
   },
   metricCard: {
     flex: 1,
-    backgroundColor: ExecutiveTheme.colors.surface,
+    backgroundColor: '#262626',
     borderRadius: 14,
     padding: 12,
     borderWidth: 1,
-    borderColor: ExecutiveTheme.colors.border,
+    borderColor: '#333333',
+    elevation: 2,
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    justifyContent: 'center',
+  },
+  metricTopRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
-    minHeight: 68,
-    elevation: 2,
-    shadowColor: '#1E293B',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.04,
-    shadowRadius: 6,
+    justifyContent: 'space-between',
+    marginBottom: 4,
   },
   metricCardAssigned: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: '#262626',
+    borderColor: '#333333',
   },
   metricCardProgress: {
-    backgroundColor: '#EFF6FF',
-    borderColor: '#BFDBFE',
+    backgroundColor: '#262626',
+    borderColor: '#333333',
   },
   metricCardHold: {
-    backgroundColor: '#FFFBEB',
-    borderColor: '#FDE68A',
+    backgroundColor: '#262626',
+    borderColor: '#333333',
+  },
+  metricCardResolved: {
+    backgroundColor: '#2B2B2B',
+    borderColor: '#F5C400',
   },
   metricCardSuccess: {
-    backgroundColor: '#ECFDF5',
-    borderColor: '#A7F3D0',
+    backgroundColor: '#2B2B2B',
+    borderColor: '#F5C400',
   },
   metricIconWrap: {
-    width: 36,
-    height: 36,
-    borderRadius: 10,
-    backgroundColor: ExecutiveTheme.colors.brandLight,
+    width: 28,
+    height: 28,
+    borderRadius: 8,
+    backgroundColor: '#1E1E1E',
+    borderWidth: 1,
+    borderColor: '#333333',
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -602,97 +667,111 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   metricNumber: {
-    fontSize: 18,
-    fontWeight: '800',
-    color: ExecutiveTheme.colors.textPrimary,
-    lineHeight: 22,
+    fontSize: 20,
+    fontWeight: '900',
+    color: '#FFFFFF',
+    lineHeight: 24,
   },
   metricLabel: {
-    fontSize: 9,
+    fontSize: 9.5,
     fontWeight: '800',
-    color: ExecutiveTheme.colors.textSecondary,
-    letterSpacing: 0.4,
-    marginTop: 2,
+    color: '#888888',
+    letterSpacing: 0.5,
   },
   urgentBanner: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
-    backgroundColor: '#FFF1F2',
+    gap: 8,
+    backgroundColor: '#202020',
     borderWidth: 1,
-    borderColor: '#FECDD3',
-    borderRadius: 14,
-    padding: 12,
-    marginBottom: 12,
+    borderColor: '#F5C400',
+    borderRadius: 12,
+    padding: 10,
   },
   urgentTextGroup: {
     flex: 1,
   },
   urgentTitle: {
-    fontSize: 13,
+    fontSize: 12.5,
     fontWeight: '800',
-    color: '#9F1239',
+    color: '#FFFFFF',
   },
   urgentSubtitle: {
-    fontSize: 11.5,
-    color: '#881337',
+    fontSize: 11,
+    color: '#E5E5E5',
     marginTop: 1,
   },
-  filterSection: {
-    marginBottom: 12,
-  },
-  segmentedControl: {
+  searchBar: {
     flexDirection: 'row',
-    width: '100%',
-    backgroundColor: ExecutiveTheme.colors.backgroundSubtle,
-    borderRadius: 12,
-    padding: 3,
+    alignItems: 'center',
+    backgroundColor: ExecutiveTheme.colors.surface,
     borderWidth: 1,
     borderColor: ExecutiveTheme.colors.border,
-    minHeight: 44,
-  },
-  segmentTab: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderRadius: 9,
-    minHeight: 38,
-  },
-  activeSegmentTab: {
-    backgroundColor: ExecutiveTheme.colors.surface,
+    borderRadius: 12,
+    paddingHorizontal: 14,
+    height: 48,
+    gap: 10,
     elevation: 2,
-    shadowColor: '#1E293B',
+    shadowColor: '#000000',
     shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.06,
-    shadowRadius: 3,
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
   },
-  segmentText: {
+  searchInput: {
+    flex: 1,
+    fontSize: 14,
+    color: ExecutiveTheme.colors.textPrimary,
+    fontWeight: '500',
+  },
+  filterChipRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  filterChip: {
+    paddingHorizontal: 14,
+    minHeight: 40,
+    justifyContent: 'center',
+    borderRadius: 10,
+    backgroundColor: ExecutiveTheme.colors.surface,
+    borderWidth: 1,
+    borderColor: ExecutiveTheme.colors.border,
+  },
+  filterChipActive: {
+    backgroundColor: ExecutiveTheme.colors.brandPrimary,
+    borderColor: ExecutiveTheme.colors.brandPrimary,
+  },
+  filterChipText: {
     fontSize: 12,
     fontWeight: '600',
     color: ExecutiveTheme.colors.textSecondary,
   },
-  activeSegmentText: {
-    color: ExecutiveTheme.colors.brandPrimary,
+  filterChipTextActive: {
+    color: '#111111',
     fontWeight: '800',
+  },
+  flatList: {
+    width: '100%',
+    maxWidth: ExecutiveTheme.MaxContentWidth,
+    alignSelf: 'center',
   },
   listContent: {
     paddingHorizontal: 16,
     paddingBottom: 90,
     gap: 12,
     width: '100%',
-    maxWidth: ExecutiveTheme.MaxContentWidth,
   },
   taskCard: {
     backgroundColor: ExecutiveTheme.colors.surface,
-    borderRadius: 16,
-    padding: 16,
+    borderRadius: 12,
+    padding: 14,
     borderWidth: 1,
     borderColor: ExecutiveTheme.colors.border,
-    elevation: 2,
-    shadowColor: '#1E293B',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.04,
-    shadowRadius: 8,
+    elevation: 1,
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.2,
+    shadowRadius: 5,
   },
   cardPressed: {
     opacity: 0.88,
@@ -702,90 +781,107 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 8,
+    marginBottom: 6,
   },
   badgesRow: {
     flexDirection: 'row',
     gap: 6,
   },
   cardDate: {
-    fontSize: 11.5,
+    fontSize: 11,
     color: ExecutiveTheme.colors.textSecondary,
     fontWeight: '600',
   },
   taskTitle: {
-    fontSize: 15,
+    fontSize: 14.5,
     fontWeight: '800',
     color: ExecutiveTheme.colors.textPrimary,
     letterSpacing: -0.2,
-    marginBottom: 4,
+    marginBottom: 3,
   },
   taskDesc: {
-    fontSize: 13,
+    fontSize: 12.5,
     color: ExecutiveTheme.colors.textSecondary,
-    lineHeight: 18,
-    marginBottom: 8,
+    lineHeight: 17,
+    marginBottom: 6,
   },
   residentBox: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
+    gap: 5,
     backgroundColor: ExecutiveTheme.colors.backgroundSubtle,
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 8,
+    paddingHorizontal: 8,
+    paddingVertical: 3.5,
+    borderRadius: 6,
+    alignSelf: 'flex-start',
     marginBottom: 8,
+    borderWidth: 0.8,
+    borderColor: ExecutiveTheme.colors.border,
   },
-  residentLabel: {
-    fontSize: 9.5,
-    fontWeight: '800',
-    color: ExecutiveTheme.colors.textSecondary,
+  residentAvatarMini: {
+    width: 18,
+    height: 18,
+    borderRadius: 9,
+    backgroundColor: '#2B2B2B',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   residentName: {
-    fontSize: 12,
+    fontSize: 11.5,
     fontWeight: '700',
     color: ExecutiveTheme.colors.textPrimary,
+  },
+  dotSeparator: {
+    color: '#888888',
+    fontSize: 11,
+    marginHorizontal: 1,
+  },
+  equipmentNameText: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: ExecutiveTheme.colors.textSecondary,
   },
   thumbnailRow: {
     flexDirection: 'row',
     gap: 6,
-    marginBottom: 10,
+    marginBottom: 8,
   },
   thumbImage: {
-    width: 46,
-    height: 46,
+    width: 44,
+    height: 44,
     borderRadius: 8,
-    backgroundColor: ExecutiveTheme.colors.backgroundSubtle,
-    borderWidth: 0.8,
+    backgroundColor: '#2B2B2B',
+    borderWidth: 1,
     borderColor: ExecutiveTheme.colors.border,
   },
   morePhotosBadge: {
-    width: 46,
-    height: 46,
+    width: 44,
+    height: 44,
     borderRadius: 8,
-    backgroundColor: ExecutiveTheme.colors.backgroundSubtle,
+    backgroundColor: '#2B2B2B',
     alignItems: 'center',
     justifyContent: 'center',
-    borderWidth: 0.8,
+    borderWidth: 1,
     borderColor: ExecutiveTheme.colors.border,
   },
   morePhotosText: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: ExecutiveTheme.colors.textSecondary,
+    fontSize: 11.5,
+    fontWeight: '800',
+    color: '#F5C400',
   },
   cardFooter: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingTop: 10,
-    borderTopWidth: 0.8,
+    paddingTop: 8,
+    borderTopWidth: 1,
     borderTopColor: ExecutiveTheme.colors.borderSubtle,
   },
   workOrderRef: {
-    fontSize: 11,
+    fontSize: 10.5,
     fontWeight: '700',
-    color: ExecutiveTheme.colors.textMuted,
+    color: '#888888',
+    letterSpacing: 0.2,
   },
   openWorkspaceChip: {
     flexDirection: 'row',
@@ -793,19 +889,19 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     gap: 4,
     backgroundColor: ExecutiveTheme.colors.brandPrimary,
-    paddingHorizontal: 14,
-    minHeight: 40,
-    borderRadius: 10,
-    elevation: 2,
-    shadowColor: '#4F46E5',
+    paddingHorizontal: 12,
+    height: 32,
+    borderRadius: 8,
+    elevation: 1,
+    shadowColor: '#000000',
     shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.15,
+    shadowOpacity: 0.25,
     shadowRadius: 3,
   },
   openWorkspaceText: {
-    color: '#FFFFFF',
-    fontSize: 12,
-    fontWeight: '700',
+    color: '#111111',
+    fontSize: 11.5,
+    fontWeight: '800',
   },
   centerContainer: {
     alignItems: 'center',

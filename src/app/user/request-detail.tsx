@@ -12,10 +12,12 @@ import {
   View,
 } from 'react-native';
 
+import { EquipmentTagCard } from '@/components/equipment-tag-card';
 import { ExecutiveHeader } from '@/components/executive-header';
 import { PriorityBadge, StatusBadge } from '@/components/status-badge';
 import { TimelineView } from '@/components/timeline-view';
 import { ExecutiveTheme, formatINR } from '@/constants/theme';
+import { useLanguage } from '@/context/language-context';
 import { supabase } from '@/lib/supabase';
 import { MaintenanceService } from '@/services/maintenance-service';
 import { PdfService } from '@/services/pdf-service';
@@ -28,6 +30,7 @@ export default function UserRequestDetailScreen() {
   const [loading, setLoading] = useState(true);
   const [pdfGenerating, setPdfGenerating] = useState(false);
   const [selectedPhotoUrl, setSelectedPhotoUrl] = useState<string | null>(null);
+  const { t } = useLanguage();
 
   useEffect(() => {
     async function loadRequest() {
@@ -37,7 +40,7 @@ export default function UserRequestDetailScreen() {
         setTask(data);
       } catch (err: any) {
         console.error('Error loading request detail:', err);
-        showAlert('Error', err?.message || 'Could not load maintenance request.');
+        showAlert(t('requestDetail.alerts.errorTitle', 'Error'), err?.message || 'Could not load maintenance request.');
       } finally {
         setLoading(false);
       }
@@ -78,7 +81,7 @@ export default function UserRequestDetailScreen() {
       await PdfService.exportPdfReport(request);
     } catch (err: any) {
       console.error('PDF Export Error:', err);
-      showAlert('PDF Export Failed', err?.message || 'Could not generate PDF report.');
+      showAlert(t('requestDetail.alerts.pdfFailedTitle', 'PDF Export Failed'), err?.message || 'Could not generate PDF report.');
     } finally {
       setPdfGenerating(false);
     }
@@ -87,10 +90,10 @@ export default function UserRequestDetailScreen() {
   if (loading) {
     return (
       <SafeAreaView style={styles.screen}>
-        <ExecutiveHeader title="Work Order Details" showBack={true} fallbackRoute="/user/dashboard" />
+        <ExecutiveHeader title={t('requestDetail.headerTitle', 'Work Order Details')} showBack={true} fallbackRoute="/user/dashboard" />
         <View style={styles.centerContainer}>
-          <ActivityIndicator size="large" color={ExecutiveTheme.colors.brandDark} />
-          <Text style={styles.loadingText}>Loading work order details...</Text>
+          <ActivityIndicator size="large" color={ExecutiveTheme.colors.brandPrimary} />
+          <Text style={styles.loadingText}>{t('requestDetail.loadingDetail', 'Loading work order details...')}</Text>
         </View>
       </SafeAreaView>
     );
@@ -99,9 +102,9 @@ export default function UserRequestDetailScreen() {
   if (!request) {
     return (
       <SafeAreaView style={styles.screen}>
-        <ExecutiveHeader title="Work Order Details" showBack={true} fallbackRoute="/user/dashboard" />
+        <ExecutiveHeader title={t('requestDetail.headerTitle', 'Work Order Details')} showBack={true} fallbackRoute="/user/dashboard" />
         <View style={styles.centerContainer}>
-          <Text style={styles.notFoundText}>Work order record not found.</Text>
+          <Text style={styles.notFoundText}>{t('requestDetail.orderNotFound', 'Work order record not found.')}</Text>
         </View>
       </SafeAreaView>
     );
@@ -117,7 +120,7 @@ export default function UserRequestDetailScreen() {
   return (
     <SafeAreaView style={styles.screen}>
       <ExecutiveHeader
-        title="Work Order Details"
+        title={t('requestDetail.headerTitle', 'Work Order Details')}
         subtitle={`Ref: #${(request.id || '').slice(0, 8).toUpperCase()}`}
         showBack={true}
         fallbackRoute="/user/dashboard"
@@ -130,7 +133,7 @@ export default function UserRequestDetailScreen() {
             {pdfGenerating ? (
               <ActivityIndicator size="small" color="#FFFFFF" />
             ) : (
-              <Text style={styles.pdfTopBtnText}>📄 PDF Report</Text>
+              <Text style={styles.pdfTopBtnText}>{t('requestDetail.exportPdfBtn', '📄 PDF Report')}</Text>
             )}
           </Pressable>
         }
@@ -149,7 +152,7 @@ export default function UserRequestDetailScreen() {
             <Text style={styles.description}>{request.description}</Text>
 
             <View style={styles.dateRow}>
-              <Text style={styles.dateLabel}>SUBMITTED ON:</Text>
+              <Text style={styles.dateLabel}>{t('requestDetail.submittedOn', 'SUBMITTED ON:')}</Text>
               <Text style={styles.dateValue}>
                 {request.created_at
                   ? new Date(request.created_at).toLocaleDateString('en-IN', {
@@ -162,9 +165,14 @@ export default function UserRequestDetailScreen() {
             </View>
           </View>
 
+          {/* Equipment Asset Information (if linked) */}
+          {request.equipment && (
+            <EquipmentTagCard equipment={request.equipment} readOnly={true} />
+          )}
+
           {/* Section 2: Assigned Staff / Technician */}
           <View style={styles.card}>
-            <Text style={styles.sectionHeader}>ASSIGNED MAINTENANCE SPECIALIST</Text>
+            <Text style={styles.sectionHeader}>{t('requestDetail.specialistTitle', 'ASSIGNED MAINTENANCE SPECIALIST')}</Text>
             {request.assignee ? (
               <View style={styles.staffRow}>
                 <View style={styles.staffAvatar}>
@@ -188,7 +196,7 @@ export default function UserRequestDetailScreen() {
             ) : (
               <View style={styles.unassignedBox}>
                 <Text style={styles.unassignedText}>
-                  ⏳ Request logged in dispatch queue. Technician assignment in progress.
+                  {t('requestDetail.unassignedNotice', '⏳ Request logged in dispatch queue. Technician assignment in progress.')}
                 </Text>
               </View>
             )}
@@ -197,18 +205,18 @@ export default function UserRequestDetailScreen() {
           {/* Section 3: Financial & Warranty Summary (in ₹ INR) */}
           {(request.actual_cost != null || request.estimated_cost != null || request.warranty_status) && (
             <View style={styles.card}>
-              <Text style={styles.sectionHeader}>FINANCIAL & WARRANTY SUMMARY (₹ INR)</Text>
+              <Text style={styles.sectionHeader}>{t('requestDetail.financialTitle', 'FINANCIAL & WARRANTY SUMMARY (₹ INR)')}</Text>
               <View style={styles.financeGrid}>
                 {request.estimated_cost != null && (
                   <View style={styles.financeBox}>
-                    <Text style={styles.financeLabel}>Estimated Quote</Text>
+                    <Text style={styles.financeLabel}>{t('requestDetail.estimatedQuote', 'Estimated Quote')}</Text>
                     <Text style={styles.financeVal}>{formatINR(request.estimated_cost)}</Text>
                   </View>
                 )}
                 {request.actual_cost != null && (
-                  <View style={[styles.financeBox, { backgroundColor: '#F0FDF4', borderColor: '#BBF7D0' }]}>
-                    <Text style={[styles.financeLabel, { color: '#15803D' }]}>Final Actual Cost</Text>
-                    <Text style={[styles.financeVal, { color: '#15803D' }]}>
+                  <View style={[styles.financeBox, { backgroundColor: '#202020', borderColor: '#2B2B2B' }]}>
+                    <Text style={[styles.financeLabel, { color: '#E5E5E5' }]}>{t('requestDetail.finalCost', 'Final Actual Cost')}</Text>
+                    <Text style={[styles.financeVal, { color: '#F5C400' }]}>
                       {formatINR(request.actual_cost)}
                     </Text>
                   </View>
@@ -217,7 +225,7 @@ export default function UserRequestDetailScreen() {
 
               {request.warranty_status && (
                 <View style={styles.warrantyRow}>
-                  <Text style={styles.warrantyLabel}>Warranty Status:</Text>
+                  <Text style={styles.warrantyLabel}>{t('requestDetail.warrantyStatus', 'Warranty Status:')}</Text>
                   <Text style={styles.warrantyValue}>
                     {request.warranty_status.replace(/_/g, ' ').toUpperCase()}
                   </Text>
@@ -242,10 +250,10 @@ export default function UserRequestDetailScreen() {
 
           {/* Section 4: Photo Gallery */}
           <View style={styles.card}>
-            <Text style={styles.sectionHeader}>WORK ORDER EVIDENCE & PHOTOS</Text>
+            <Text style={styles.sectionHeader}>{t('requestDetail.photosTitle', 'WORK ORDER EVIDENCE & PHOTOS')}</Text>
 
             {/* Issue Photos */}
-            <Text style={styles.photoSubHeader}>Initial Problem Photos ({issuePhotos.length})</Text>
+            <Text style={styles.photoSubHeader}>{t('requestDetail.initialPhotos', 'Initial Problem Photos')} ({issuePhotos.length})</Text>
             {issuePhotos.length > 0 ? (
               <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.photoScroll}>
                 {issuePhotos.map((p, idx) => (
@@ -261,7 +269,7 @@ export default function UserRequestDetailScreen() {
             {/* Resolution Photos */}
             {resolutionPhotos.length > 0 && (
               <>
-                <Text style={[styles.photoSubHeader, { color: '#15803D', marginTop: 12 }]}>
+                <Text style={[styles.photoSubHeader, { color: '#F5C400', marginTop: 12 }]}>
                   Verified Post-Repair Photos ({resolutionPhotos.length})
                 </Text>
                 <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.photoScroll}>
@@ -383,14 +391,16 @@ const styles = StyleSheet.create({
     width: 44,
     height: 44,
     borderRadius: 12,
-    backgroundColor: ExecutiveTheme.colors.brandDark,
+    backgroundColor: '#1E293B',
     alignItems: 'center',
     justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: '#3B82F6',
   },
   staffAvatarText: {
     fontSize: 16,
     fontWeight: '800',
-    color: '#FFFFFF',
+    color: '#60A5FA',
   },
   staffInfo: {
     flex: 1,
@@ -444,7 +454,7 @@ const styles = StyleSheet.create({
   financeVal: {
     fontSize: 16,
     fontWeight: '800',
-    color: ExecutiveTheme.colors.brandDark,
+    color: '#F5C400',
     marginTop: 2,
   },
   warrantyRow: {
@@ -482,7 +492,7 @@ const styles = StyleSheet.create({
     lineHeight: 16,
   },
   summaryBox: {
-    backgroundColor: '#F8FAFC',
+    backgroundColor: ExecutiveTheme.colors.backgroundSubtle,
     borderRadius: 8,
     padding: 10,
     marginTop: 8,
@@ -523,15 +533,15 @@ const styles = StyleSheet.create({
     fontStyle: 'italic',
   },
   pdfTopBtn: {
-    backgroundColor: ExecutiveTheme.colors.brandDark,
+    backgroundColor: ExecutiveTheme.colors.brandPrimary,
     paddingHorizontal: 10,
     paddingVertical: 5,
     borderRadius: 8,
   },
   pdfTopBtnText: {
     fontSize: 11.5,
-    fontWeight: '700',
-    color: '#FFFFFF',
+    fontWeight: '800',
+    color: '#111111',
   },
   centerContainer: {
     flex: 1,

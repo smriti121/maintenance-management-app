@@ -19,21 +19,30 @@ import {
 import { AppBottomNav } from '@/components/app-bottom-nav';
 import { ExecutiveHeader } from '@/components/executive-header';
 import { ExecutiveTheme } from '@/constants/theme';
+import { useLanguage } from '@/context/language-context';
 import { supabase } from '@/lib/supabase';
+import { EquipmentQrSheetModal } from '@/components/equipment-qr-sheet-modal';
+import { EquipmentTagCard } from '@/components/equipment-tag-card';
+import { QrScannerModal } from '@/components/qr-scanner-modal';
 import { AiService, AiTriageResult } from '@/services/ai-service';
+import { EquipmentService } from '@/services/equipment-service';
 import { MaintenanceService, SelectedPhotoInput } from '@/services/maintenance-service';
-import { Priority } from '@/types/maintenance';
+import { Equipment, Priority } from '@/types/maintenance';
 import { showAlert } from '@/utils/alert';
 
 export default function CreateRequestScreen() {
-  const params = useLocalSearchParams<{ initialTitle?: string }>();
+  const params = useLocalSearchParams<{ initialTitle?: string; productId?: string }>();
   const [title, setTitle] = useState(params.initialTitle || '');
   const [description, setDescription] = useState('');
   const [priority, setPriority] = useState<Priority>('medium');
   const [photos, setPhotos] = useState<SelectedPhotoInput[]>([]);
+  const [equipment, setEquipment] = useState<Equipment | null>(null);
+  const [scannerVisible, setScannerVisible] = useState(false);
+  const [assetSheetVisible, setAssetSheetVisible] = useState(false);
   const [aiAnalyzing, setAiAnalyzing] = useState(false);
   const [aiResult, setAiResult] = useState<AiTriageResult | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const { t } = useLanguage();
 
   useEffect(() => {
     if (params.initialTitle) {
@@ -41,40 +50,68 @@ export default function CreateRequestScreen() {
     }
   }, [params.initialTitle]);
 
+  useEffect(() => {
+    if (params.productId) {
+      EquipmentService.getEquipmentByProductId(params.productId)
+        .then((eq) => {
+          if (eq) {
+            handleEquipmentIdentified(eq);
+          }
+        })
+        .catch((err) => console.warn('Param equipment load error:', err));
+    }
+  }, [params.productId]);
+
+  function handleEquipmentIdentified(eq: Equipment) {
+    setEquipment(eq);
+    if (!title.trim()) {
+      setTitle(`${eq.name} Maintenance - ${eq.location}`);
+    }
+    // Auto-triage with equipment context if description exists
+    if (description.trim()) {
+      AiService.analyzeIssue(eq.name, `${description} (Equipment: ${eq.name}, Model: ${eq.model || 'N/A'}, Location: ${eq.location})`)
+        .then((res) => {
+          setAiResult(res);
+          if (res.recommendedPriority) setPriority(res.recommendedPriority);
+        })
+        .catch(() => {});
+    }
+  }
+
   const presetIssues = [
     {
-      label: 'Fan Issue',
+      label: t('createRequest.presets.fanIssue', 'Fan Issue'),
       icon: 'sync-outline' as const,
-      title: 'Ceiling Fan Not Working',
-      desc: 'Ceiling fan is not rotating / making grinding noise. Requires inspection of regulator and motor.',
+      title: t('createRequest.presets.fanIssueTitle', 'Ceiling Fan Not Working'),
+      desc: t('createRequest.presets.fanIssueDesc', 'Ceiling fan is not rotating / making grinding noise. Requires inspection of regulator and motor.'),
       priority: 'medium' as Priority,
     },
     {
-      label: 'Bulb / Light',
+      label: t('createRequest.presets.bulbLight', 'Bulb / Light'),
       icon: 'bulb-outline' as const,
-      title: 'Bulb / Lighting Fixture Issue',
-      desc: 'Light bulb has fused and needs replacement. Fixture power supply needs checking.',
+      title: t('createRequest.presets.bulbLightTitle', 'Bulb / Lighting Fixture Issue'),
+      desc: t('createRequest.presets.bulbLightDesc', 'Light bulb has fused and needs replacement. Fixture power supply needs checking.'),
       priority: 'low' as Priority,
     },
     {
-      label: 'AC Issue',
+      label: t('createRequest.presets.acService', 'AC Issue'),
       icon: 'snow-outline' as const,
-      title: 'Air Conditioner Cooling Issue',
-      desc: 'AC is not cooling effectively / blowing warm air. Filters and gas pressure need inspection.',
+      title: t('createRequest.presets.acServiceTitle', 'Air Conditioner Cooling Issue'),
+      desc: t('createRequest.presets.acServiceDesc', 'AC is not cooling effectively / blowing warm air. Filters and gas pressure need inspection.'),
       priority: 'high' as Priority,
     },
     {
-      label: 'Plumbing',
+      label: t('createRequest.presets.plumbing', 'Plumbing'),
       icon: 'water-outline' as const,
-      title: 'Plumbing & Tap Leakage',
-      desc: 'Continuous water leakage observed from bathroom/kitchen pipeline. Requires valve and joint sealing.',
+      title: t('createRequest.presets.plumbingTitle', 'Plumbing & Tap Leakage'),
+      desc: t('createRequest.presets.plumbingDesc', 'Continuous water leakage observed from bathroom/kitchen pipeline. Requires valve and joint sealing.'),
       priority: 'high' as Priority,
     },
     {
-      label: 'Electrical',
+      label: t('createRequest.presets.electrical', 'Electrical'),
       icon: 'flash-outline' as const,
-      title: 'Electrical Switch / Power Issue',
-      desc: 'Power socket is sparking / unresponsive. Circuit breaker trips when appliance is connected.',
+      title: t('createRequest.presets.electricalTitle', 'Electrical Switch / Power Issue'),
+      desc: t('createRequest.presets.electricalDesc', 'Power socket is sparking / unresponsive. Circuit breaker trips when appliance is connected.'),
       priority: 'urgent' as Priority,
     },
   ];
@@ -93,7 +130,10 @@ export default function CreateRequestScreen() {
   // 1. Smart AI Triage Analysis
   async function handleAiTriage() {
     if (!title.trim() && !description.trim()) {
-      showAlert('Enter Details First', 'Please enter an issue title or description for AI analysis.');
+      showAlert(
+        t('createRequest.alerts.enterDetailsFirstTitle', 'Enter Details First'),
+        t('createRequest.alerts.enterDetailsFirstMsg', 'Please enter an issue title or description for AI analysis.')
+      );
       return;
     }
 
@@ -116,7 +156,10 @@ export default function CreateRequestScreen() {
     try {
       const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
       if (status !== 'granted') {
-        showAlert('Permission Required', 'FixFlow requires access to your photo library to attach photos.');
+        showAlert(
+          t('createRequest.alerts.permissionRequiredTitle', 'Permission Required'),
+          t('createRequest.alerts.permissionRequiredMsg', 'FixFlow requires access to your photo library to attach photos.')
+        );
         return;
       }
 
@@ -144,8 +187,7 @@ export default function CreateRequestScreen() {
         setPhotos((prev) => [...prev, ...newPhotos]);
       }
     } catch (err: any) {
-      console.error('Error picking photos:', err);
-      showAlert('Photo Notice', 'Could not access photos: ' + (err?.message || 'Unknown issue.'));
+      console.warn('Photo picker error:', err);
     }
   }
 
@@ -153,7 +195,10 @@ export default function CreateRequestScreen() {
     try {
       const { status } = await ImagePicker.requestCameraPermissionsAsync();
       if (status !== 'granted') {
-        showAlert('Camera Permission Required', 'FixFlow requires camera access to take evidence photos.');
+        showAlert(
+          t('createRequest.alerts.permissionRequiredTitle', 'Permission Required'),
+          t('createRequest.alerts.cameraPermissionMsg', 'FixFlow requires camera access to capture evidence photos.')
+        );
         return;
       }
 
@@ -162,24 +207,22 @@ export default function CreateRequestScreen() {
         base64: true,
       });
 
-      if (!result.canceled && result.assets && result.assets[0]) {
+      if (!result.canceled && result.assets && result.assets.length > 0) {
         const asset = result.assets[0];
         let uri = asset.uri;
         if (asset.base64) {
           const mime = asset.mimeType || 'image/jpeg';
           uri = `data:${mime};base64,${asset.base64}`;
         }
-        setPhotos((prev) => [
-          ...prev,
-          {
-            uri,
-            name: asset.fileName || `camera-photo-${Date.now()}.jpg`,
-            mimeType: asset.mimeType || 'image/jpeg',
-          },
-        ]);
+        const newPhoto: SelectedPhotoInput = {
+          uri,
+          name: asset.fileName || `camera-photo-${Date.now()}.jpg`,
+          mimeType: asset.mimeType || 'image/jpeg',
+        };
+        setPhotos((prev) => [...prev, newPhoto]);
       }
     } catch (err: any) {
-      console.error('Camera error:', err);
+      console.warn('Camera error:', err);
     }
   }
 
@@ -193,7 +236,10 @@ export default function CreateRequestScreen() {
     const cleanDescription = description.trim();
 
     if (!cleanTitle || !cleanDescription) {
-      showAlert('Missing Fields', 'Please provide both an issue title and a description.');
+      showAlert(
+        t('createRequest.alerts.missingFieldsTitle', 'Missing Fields'),
+        t('createRequest.alerts.missingFieldsMsg', 'Please provide both an issue title and a description.')
+      );
       return;
     }
 
@@ -209,34 +255,47 @@ export default function CreateRequestScreen() {
         throw new Error('Authentication session expired. Please sign in again.');
       }
 
+      const cleanDescriptionWithEquipment = equipment
+        ? `${cleanDescription}\n\n[Equipment: ${equipment.name} | Product ID: ${equipment.product_id} | Model: ${equipment.model || 'N/A'} | Location: ${equipment.location}]`
+        : cleanDescription;
+
       const created = await MaintenanceService.createMaintenanceRequest(user.id, {
         title: cleanTitle,
-        description: cleanDescription,
+        description: cleanDescriptionWithEquipment,
         priority,
         photos,
+        equipment_id: equipment?.id || null,
+        product_id: equipment?.product_id || null,
       });
 
       const staffName = created.assignee?.full_name || created.assignee?.email;
       const message = staffName
-        ? `Your request has been submitted and automatically assigned to technician ${staffName}!`
-        : 'Your request has been submitted and added to the dispatch queue!';
+        ? `${t('createRequest.alerts.autoAssignedPrefix', 'Your request has been submitted and automatically assigned to technician')} ${staffName}!`
+        : t('createRequest.alerts.queuedMsg', 'Your request has been submitted and added to the dispatch queue!');
 
-      showAlert('Request Created! 🎉', message, () => {
+      showAlert(t('createRequest.alerts.successTitle', 'Request Created! 🎉'), message, () => {
         router.replace('/user/dashboard');
       });
     } catch (err: any) {
       console.error('Submit error:', err);
-      showAlert('Submission Notice', err?.message || 'Could not submit request. Please try again.');
+      showAlert(t('createRequest.alerts.submissionNoticeTitle', 'Submission Notice'), err?.message || 'Could not submit request. Please try again.');
     } finally {
       setSubmitting(false);
     }
   }
 
+  const priorityLabels: Record<Priority, string> = {
+    low: t('priority.low', 'LOW'),
+    medium: t('priority.medium', 'STANDARD'),
+    high: t('priority.high', 'HIGH'),
+    urgent: t('priority.emergency', 'URGENT'),
+  };
+
   return (
     <SafeAreaView style={styles.screen}>
       <ExecutiveHeader
-        title="New Maintenance Request"
-        subtitle="Facility Maintenance Dispatch"
+        title={t('createRequest.headerTitle', 'New Maintenance Request')}
+        subtitle={t('createRequest.headerSubtitle', 'Facility Maintenance Dispatch')}
         showBack={true}
         fallbackRoute="/user/dashboard"
       />
@@ -251,9 +310,49 @@ export default function CreateRequestScreen() {
           showsVerticalScrollIndicator={false}
         >
           <View style={styles.container}>
+            {/* Equipment Tag Card (if identified) OR QR Scanner Prompt Banner */}
+            {equipment ? (
+              <EquipmentTagCard
+                equipment={equipment}
+                onClear={() => setEquipment(null)}
+              />
+            ) : (
+              <View style={styles.qrBannerCard}>
+                <View style={styles.qrBannerLeft}>
+                  <View style={styles.qrIconWrap}>
+                    <Ionicons name="qr-code" size={22} color="#111111" />
+                  </View>
+                  <View style={styles.qrBannerTextWrap}>
+                    <Text style={styles.qrBannerTitle}>{t('equipment.scanBannerTitle', 'Fast Ticket with QR Code')}</Text>
+                    <Text style={styles.qrBannerSub}>
+                      {t('equipment.scanBannerSub', 'Scan the QR tag on your fan, AC, or tap to auto-fill asset details')}
+                    </Text>
+                  </View>
+                </View>
+
+                <View style={styles.qrActionBtns}>
+                  <Pressable
+                    style={({ pressed }) => [styles.scanActionBtn, pressed && styles.pressed]}
+                    onPress={() => setScannerVisible(true)}
+                  >
+                    <Ionicons name="camera" size={15} color="#111111" />
+                    <Text style={styles.scanActionBtnText}>{t('equipment.scanQrBtn', 'Scan Equipment QR')}</Text>
+                  </Pressable>
+
+                  <Pressable
+                    style={({ pressed }) => [styles.viewSheetBtn, pressed && styles.pressed]}
+                    onPress={() => setAssetSheetVisible(true)}
+                  >
+                    <Ionicons name="list-outline" size={15} color={ExecutiveTheme.colors.brandPrimary} />
+                    <Text style={styles.viewSheetBtnText}>{t('equipment.assetDirectoryTitle', 'Asset Tags')}</Text>
+                  </Pressable>
+                </View>
+              </View>
+            )}
+
             {/* Quick Issue Selector Chips */}
             <View style={styles.card}>
-              <Text style={styles.sectionHeader}>QUICK SELECT COMMON ISSUE</Text>
+              <Text style={styles.sectionHeader}>{t('createRequest.quickCommonTitle', 'QUICK SELECT COMMON ISSUE')}</Text>
               <View style={styles.presetGrid}>
                 {presetIssues.map((preset, idx) => (
                   <Pressable
@@ -270,21 +369,21 @@ export default function CreateRequestScreen() {
 
             {/* Issue Information Card */}
             <View style={styles.card}>
-              <Text style={styles.sectionHeader}>MAINTENANCE WORK SCOPE</Text>
+              <Text style={styles.sectionHeader}>{t('createRequest.scopeTitle', 'MAINTENANCE WORK SCOPE')}</Text>
 
-              <Text style={styles.fieldLabel}>ISSUE TITLE *</Text>
+              <Text style={styles.fieldLabel}>{t('createRequest.issueTitleLabel', 'ISSUE TITLE *')}</Text>
               <TextInput
                 style={styles.textInput}
-                placeholder="e.g. Ceiling Fan Not Working"
+                placeholder={t('createRequest.issueTitlePlaceholder', 'e.g. Ceiling Fan Not Working')}
                 placeholderTextColor={ExecutiveTheme.colors.textMuted}
                 value={title}
                 onChangeText={setTitle}
               />
 
-              <Text style={styles.fieldLabel}>DETAILED DESCRIPTION *</Text>
+              <Text style={styles.fieldLabel}>{t('createRequest.descLabel', 'DETAILED DESCRIPTION *')}</Text>
               <TextInput
                 style={[styles.textInput, styles.textArea]}
-                placeholder="Describe the issue, location in apartment, and when it started..."
+                placeholder={t('createRequest.descPlaceholder', 'Describe the issue, location in apartment, and when it started...')}
                 placeholderTextColor={ExecutiveTheme.colors.textMuted}
                 value={description}
                 onChangeText={setDescription}
@@ -292,7 +391,7 @@ export default function CreateRequestScreen() {
               />
 
               {/* Priority Selector */}
-              <Text style={styles.fieldLabel}>PRIORITY LEVEL</Text>
+              <Text style={styles.fieldLabel}>{t('createRequest.priorityLabel', 'PRIORITY LEVEL')}</Text>
               <View style={styles.priorityRow}>
                 {(['low', 'medium', 'high', 'urgent'] as Priority[]).map((p) => {
                   const isSelected = priority === p;
@@ -310,8 +409,11 @@ export default function CreateRequestScreen() {
                           styles.priorityChipText,
                           isSelected && styles.priorityChipTextSelected,
                         ]}
+                        numberOfLines={1}
+                        adjustsFontSizeToFit
+                        minimumFontScale={0.8}
                       >
-                        {p.toUpperCase()}
+                        {priorityLabels[p].toUpperCase()}
                       </Text>
                     </Pressable>
                   );
@@ -322,18 +424,18 @@ export default function CreateRequestScreen() {
             {/* AI Smart Triage Assistant */}
             <View style={styles.card}>
               <View style={styles.aiHeaderRow}>
-                <Text style={styles.sectionHeader}>AI SMART TRIAGE ASSISTANT</Text>
+                <Text style={styles.sectionHeader}>{t('createRequest.aiTitle', 'AI SMART TRIAGE ASSISTANT')}</Text>
                 <Pressable
                   style={({ pressed }) => [styles.aiBtn, pressed && styles.pressed]}
                   onPress={handleAiTriage}
                   disabled={aiAnalyzing}
                 >
                   {aiAnalyzing ? (
-                    <ActivityIndicator size="small" color={ExecutiveTheme.colors.brandDark} />
+                    <ActivityIndicator size="small" color={ExecutiveTheme.colors.brandPrimary} />
                   ) : (
                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-                      <Ionicons name="sparkles" size={13} color={ExecutiveTheme.colors.brandDark} />
-                      <Text style={styles.aiBtnText}>Analyze Issue</Text>
+                      <Ionicons name="sparkles" size={13} color={ExecutiveTheme.colors.brandPrimary} />
+                      <Text style={styles.aiBtnText}>{t('createRequest.analyzeBtn', 'Analyze Issue')}</Text>
                     </View>
                   )}
                 </Pressable>
@@ -347,20 +449,22 @@ export default function CreateRequestScreen() {
                   </View>
                   <Text style={styles.aiExplanation}>{aiResult.explanation}</Text>
                   <View style={styles.aiBenchmarkRow}>
-                    <Text style={styles.aiBenchmarkLabel}>Estimated Cost Range (₹):</Text>
+                    <Text style={styles.aiBenchmarkLabel}>{t('createRequest.estimatedCostBenchmark', 'Estimated Cost Range (₹):')}</Text>
                     <Text style={styles.aiBenchmarkValue}>{aiResult.estimatedCostRange}</Text>
                   </View>
                 </View>
               ) : (
                 <Text style={styles.aiPromptText}>
-                  Tap "Analyze Issue" to automatically predict trade category, priority, and estimated repair cost benchmark in ₹ INR.
+                  {t('createRequest.aiInitialPrompt', 'Tap "Analyze Issue" to automatically predict trade category, priority, and estimated repair cost benchmark in ₹ INR.')}
                 </Text>
               )}
             </View>
 
             {/* Photo Evidence Card */}
             <View style={styles.card}>
-              <Text style={styles.sectionHeader}>EVIDENCE & PHOTOS ({photos.length})</Text>
+              <Text style={styles.sectionHeader}>
+                {t('createRequest.photosTitle', 'EVIDENCE & PHOTOS')} ({photos.length})
+              </Text>
 
               <View style={styles.photoActionsRow}>
                 <Pressable
@@ -368,14 +472,14 @@ export default function CreateRequestScreen() {
                   onPress={pickPhotos}
                 >
                   <Ionicons name="images-outline" size={16} color={ExecutiveTheme.colors.textPrimary} />
-                  <Text style={styles.photoActionBtnText}>Upload Photos</Text>
+                  <Text style={styles.photoActionBtnText}>{t('createRequest.uploadPhotosBtn', 'Upload Photos')}</Text>
                 </Pressable>
                 <Pressable
                   style={({ pressed }) => [styles.photoActionBtn, pressed && styles.pressed]}
                   onPress={takePhoto}
                 >
                   <Ionicons name="camera-outline" size={16} color={ExecutiveTheme.colors.textPrimary} />
-                  <Text style={styles.photoActionBtnText}>Open Camera</Text>
+                  <Text style={styles.photoActionBtnText}>{t('createRequest.openCameraBtn', 'Open Camera')}</Text>
                 </Pressable>
               </View>
 
@@ -404,11 +508,11 @@ export default function CreateRequestScreen() {
               disabled={submitting}
             >
               {submitting ? (
-                <ActivityIndicator color="#FFFFFF" />
+                <ActivityIndicator color="#111111" />
               ) : (
                 <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
-                  <Ionicons name="send" size={15} color="#FFFFFF" />
-                  <Text style={styles.submitBtnText}>Submit Maintenance Request</Text>
+                  <Ionicons name="send" size={15} color="#111111" />
+                  <Text style={styles.submitBtnText}>{t('createRequest.submitBtn', 'Submit Maintenance Request')}</Text>
                 </View>
               )}
             </Pressable>
@@ -418,6 +522,21 @@ export default function CreateRequestScreen() {
 
       {/* 4-Tab Bottom Navigation */}
       <AppBottomNav activeTab="create" role="user" />
+
+      {/* QR Scanner Modal */}
+      <QrScannerModal
+        visible={scannerVisible}
+        onClose={() => setScannerVisible(false)}
+        onScanSuccess={(eq) => handleEquipmentIdentified(eq)}
+        onOpenAssetDirectory={() => setAssetSheetVisible(true)}
+      />
+
+      {/* Printable QR Asset Tag Sheet Modal */}
+      <EquipmentQrSheetModal
+        visible={assetSheetVisible}
+        onClose={() => setAssetSheetVisible(false)}
+        onSelectEquipment={(eq) => handleEquipmentIdentified(eq)}
+      />
     </SafeAreaView>
   );
 }
@@ -438,16 +557,119 @@ const styles = StyleSheet.create({
     alignSelf: 'center',
     gap: 14,
   },
+  qrBannerCard: {
+    backgroundColor: ExecutiveTheme.colors.surface,
+    borderRadius: 12,
+    padding: 12,
+    borderWidth: 1.2,
+    borderColor: ExecutiveTheme.colors.border,
+    elevation: 2,
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 6,
+    gap: 10,
+  },
+  qrBannerLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  qrIconWrap: {
+    width: 38,
+    height: 38,
+    borderRadius: 10,
+    backgroundColor: ExecutiveTheme.colors.brandPrimary,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  qrBannerTextWrap: {
+    flex: 1,
+  },
+  qrBannerTitle: {
+    fontSize: 13,
+    fontWeight: '800',
+    color: ExecutiveTheme.colors.textPrimary,
+  },
+  qrFastPill: {
+    backgroundColor: '#202020',
+    paddingHorizontal: 5,
+    paddingVertical: 2,
+    borderRadius: 4,
+    borderWidth: 1,
+    borderColor: '#F5C400',
+  },
+  qrFastPillText: {
+    fontSize: 9,
+    fontWeight: '900',
+    color: '#F5C400',
+    letterSpacing: 0.4,
+  },
+  qrBannerSub: {
+    fontSize: 10.5,
+    color: ExecutiveTheme.colors.textSecondary,
+    marginTop: 1.5,
+    lineHeight: 14,
+  },
+  qrHeroSub: {
+    fontSize: 10.5,
+    color: ExecutiveTheme.colors.textSecondary,
+    marginTop: 1.5,
+    lineHeight: 14,
+  },
+  qrActionBtns: {
+    flexDirection: 'row',
+    gap: 8,
+    width: '100%',
+  },
+  scanActionBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 5,
+    backgroundColor: ExecutiveTheme.colors.brandPrimary,
+    height: 38,
+    borderRadius: 8,
+    elevation: 2,
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.2,
+    shadowRadius: 3,
+  },
+  scanActionBtnText: {
+    color: '#111111',
+    fontSize: 11.5,
+    fontWeight: '800',
+  },
+  viewSheetBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 5,
+    backgroundColor: ExecutiveTheme.colors.surfaceElevated,
+    paddingHorizontal: 8,
+    height: 38,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: ExecutiveTheme.colors.border,
+  },
+  viewSheetBtnText: {
+    color: '#F5C400',
+    fontSize: 11.5,
+    fontWeight: '700',
+  },
   card: {
     backgroundColor: ExecutiveTheme.colors.surface,
-    borderRadius: 16,
-    padding: 16,
+    borderRadius: 14,
+    padding: 14,
     borderWidth: 1,
     borderColor: ExecutiveTheme.colors.border,
     elevation: 2,
-    shadowColor: '#1E293B',
+    shadowColor: '#000000',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.04,
+    shadowOpacity: 0.2,
     shadowRadius: 6,
   },
   sectionHeader: {
@@ -504,16 +726,18 @@ const styles = StyleSheet.create({
   },
   priorityRow: {
     flexDirection: 'row',
-    gap: 8,
+    gap: 6,
     marginTop: 4,
   },
   priorityChip: {
     flex: 1,
+    minWidth: 0,
     minHeight: 44,
     justifyContent: 'center',
     backgroundColor: ExecutiveTheme.colors.backgroundSubtle,
     borderRadius: 12,
     alignItems: 'center',
+    paddingHorizontal: 2,
     borderWidth: 1,
     borderColor: ExecutiveTheme.colors.border,
   },
@@ -523,12 +747,13 @@ const styles = StyleSheet.create({
     elevation: 2,
   },
   priorityChipText: {
-    fontSize: 11.5,
+    fontSize: 10.5,
     fontWeight: '700',
     color: ExecutiveTheme.colors.textSecondary,
+    textAlign: 'center',
   },
   priorityChipTextSelected: {
-    color: '#FFFFFF',
+    color: '#111111',
     fontWeight: '800',
   },
   aiHeaderRow: {
@@ -548,7 +773,7 @@ const styles = StyleSheet.create({
   aiBtnText: {
     fontSize: 11.5,
     fontWeight: '700',
-    color: ExecutiveTheme.colors.brandDark,
+    color: '#F5C400',
   },
   aiResultCard: {
     backgroundColor: ExecutiveTheme.colors.backgroundSubtle,
@@ -595,7 +820,7 @@ const styles = StyleSheet.create({
   aiBenchmarkValue: {
     fontSize: 12,
     fontWeight: '800',
-    color: ExecutiveTheme.colors.accentGold,
+    color: ExecutiveTheme.colors.brandPrimary,
   },
   aiPromptText: {
     fontSize: 12,
@@ -647,37 +872,39 @@ const styles = StyleSheet.create({
     width: 22,
     height: 22,
     borderRadius: 11,
-    backgroundColor: '#EF4444',
+    backgroundColor: '#202020',
+    borderWidth: 1,
+    borderColor: '#4A4A4A',
     alignItems: 'center',
     justifyContent: 'center',
   },
   removePhotoText: {
-    color: '#FFFFFF',
+    color: '#E5E5E5',
     fontSize: 10,
     fontWeight: '900',
   },
   submitBtn: {
     backgroundColor: ExecutiveTheme.colors.brandPrimary,
     borderRadius: 14,
-    minHeight: 50,
+    minHeight: 48,
     justifyContent: 'center',
     alignItems: 'center',
     marginTop: 4,
     marginBottom: 16,
     elevation: 3,
-    shadowColor: '#4F46E5',
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.2,
-    shadowRadius: 6,
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 5,
   },
   submitBtnText: {
-    color: '#FFFFFF',
-    fontSize: 14.5,
+    color: '#111111',
+    fontSize: 14,
     fontWeight: '800',
     letterSpacing: 0.2,
   },
   btnDisabled: {
-    backgroundColor: '#94A3B8',
+    backgroundColor: '#4A4A4A',
   },
   pressed: {
     opacity: 0.75,

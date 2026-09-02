@@ -16,12 +16,14 @@ import {
 
 import { BrandLogo } from '@/components/brand-logo';
 import { ExecutiveTheme } from '@/constants/theme';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useLanguage } from '@/context/language-context';
 import { supabase } from '@/lib/supabase';
 import { UserRole } from '@/types/maintenance';
 import { showAlert } from '@/utils/alert';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 export default function AuthScreen() {
+  const insets = useSafeAreaInsets();
   const [isSignUp, setIsSignUp] = useState(false);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -29,6 +31,7 @@ export default function AuthScreen() {
   const [role, setRole] = useState<UserRole>('user');
   const [loading, setLoading] = useState(false);
   const [initialChecking, setInitialChecking] = useState(true);
+  const { t } = useLanguage();
 
   // Auto-redirect if already logged in with a valid session
   useEffect(() => {
@@ -76,7 +79,10 @@ export default function AuthScreen() {
     const cleanEmail = email.trim().toLowerCase();
 
     if (!cleanEmail || !password) {
-      showAlert('Missing Information', 'Please enter your email and password.');
+      showAlert(
+        t('auth.alerts.missingInfoTitle', 'Missing Information'),
+        t('auth.alerts.missingInfoMsg', 'Please enter your email and password.')
+      );
       return;
     }
 
@@ -104,8 +110,8 @@ export default function AuthScreen() {
 
       if (userRole !== role) {
         await supabase.auth.signOut();
-        const actualRoleName = userRole === 'maintenance_staff' ? 'Maintenance Staff' : 'Resident';
-        const selectedRoleName = role === 'maintenance_staff' ? 'Maintenance Staff' : 'Resident';
+        const actualRoleName = userRole === 'maintenance_staff' ? t('auth.roleStaff', 'Technician') : t('auth.roleResident', 'Resident');
+        const selectedRoleName = role === 'maintenance_staff' ? t('auth.roleStaff', 'Technician') : t('auth.roleResident', 'Resident');
 
         showAlert(
           'Access Restriction 🔒',
@@ -121,7 +127,7 @@ export default function AuthScreen() {
       }
     } catch (err: any) {
       console.error('Sign in error:', err);
-      showAlert('Login Notice', err?.message || 'Could not authenticate user.');
+      showAlert(t('auth.alerts.loginNoticeTitle', 'Login Notice'), err?.message || 'Could not authenticate user.');
     } finally {
       setLoading(false);
     }
@@ -132,12 +138,18 @@ export default function AuthScreen() {
     const cleanName = fullName.trim();
 
     if (!cleanName || !cleanEmail || !password) {
-      showAlert('Missing Fields', 'Please complete all required fields.');
+      showAlert(
+        t('auth.alerts.missingFieldsTitle', 'Missing Fields'),
+        t('auth.alerts.missingFieldsMsg', 'Please complete all required fields.')
+      );
       return;
     }
 
     if (password.length < 6) {
-      showAlert('Weak Password', 'Password must be at least 6 characters.');
+      showAlert(
+        t('auth.alerts.weakPasswordTitle', 'Weak Password'),
+        t('auth.alerts.weakPasswordMsg', 'Password must be at least 6 characters.')
+      );
       return;
     }
 
@@ -214,8 +226,8 @@ export default function AuthScreen() {
       }
 
       showAlert(
-        'Account Registered! 🎉',
-        `Welcome ${cleanName}! Your ${role === 'maintenance_staff' ? 'Maintenance Staff' : 'Resident'} account has been created.`,
+        t('auth.alerts.accountRegisteredTitle', 'Account Registered! 🎉'),
+        `Welcome ${cleanName}! Your ${role === 'maintenance_staff' ? t('auth.roleStaff', 'Technician') : t('auth.roleResident', 'Resident')} account has been created.`,
         () => {
           if (role === 'maintenance_staff') {
             router.replace('/staff/dashboard');
@@ -239,7 +251,6 @@ export default function AuthScreen() {
     );
   }
 
-  const insets = useSafeAreaInsets();
   const topPadding = Math.max(
     insets.top,
     Platform.OS === 'android' ? (StatusBar.currentHeight || 28) : 20
@@ -250,7 +261,7 @@ export default function AuthScreen() {
       style={styles.screen}
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
-      <StatusBar barStyle="dark-content" backgroundColor={ExecutiveTheme.colors.background} />
+      <StatusBar barStyle="light-content" backgroundColor={ExecutiveTheme.colors.background} />
       <ScrollView
         contentContainerStyle={[styles.scrollContent, { paddingTop: topPadding + 16 }]}
         keyboardShouldPersistTaps="handled"
@@ -275,7 +286,7 @@ export default function AuthScreen() {
                 style={styles.tabIcon}
               />
               <Text style={[styles.segmentText, !isSignUp && styles.activeSegmentText]}>
-                Sign In
+                {t('auth.signInTab', 'Sign In')}
               </Text>
             </Pressable>
 
@@ -290,7 +301,7 @@ export default function AuthScreen() {
                 style={styles.tabIcon}
               />
               <Text style={[styles.segmentText, isSignUp && styles.activeSegmentText]}>
-                Create Account
+                {t('auth.signUpTab', 'Create Account')}
               </Text>
             </Pressable>
           </View>
@@ -299,7 +310,7 @@ export default function AuthScreen() {
           <View style={styles.card}>
             {/* Role Picker */}
             <Text style={styles.sectionLabel}>
-              {isSignUp ? 'SELECT ACCOUNT TYPE' : 'SIGN IN PORTAL'}
+              {isSignUp ? t('auth.selectAccountType', 'SELECT ACCOUNT TYPE') : t('auth.signInPortal', 'SIGN IN PORTAL')}
             </Text>
 
             <View style={styles.rolePicker}>
@@ -315,14 +326,14 @@ export default function AuthScreen() {
                   <Ionicons
                     name="home"
                     size={20}
-                    color={role === 'user' ? '#FFFFFF' : ExecutiveTheme.colors.brandPrimary}
+                    color={role === 'user' ? '#111111' : ExecutiveTheme.colors.brandPrimary}
                   />
                 </View>
                 <Text style={[styles.roleTitle, role === 'user' && styles.roleTitleActive]}>
-                  Resident
+                  {t('auth.roleResident', 'Resident')}
                 </Text>
                 <Text style={styles.roleSubtext}>
-                  {isSignUp ? 'Report & Track' : 'Resident Portal'}
+                  {isSignUp ? t('auth.residentReportTrack', 'Report & Track') : t('auth.residentPortalSub', 'Resident Portal')}
                 </Text>
               </Pressable>
 
@@ -338,14 +349,14 @@ export default function AuthScreen() {
                   <Ionicons
                     name="construct"
                     size={20}
-                    color={role === 'maintenance_staff' ? '#FFFFFF' : ExecutiveTheme.colors.brandPrimary}
+                    color={role === 'maintenance_staff' ? '#111111' : ExecutiveTheme.colors.brandPrimary}
                   />
                 </View>
                 <Text style={[styles.roleTitle, role === 'maintenance_staff' && styles.roleTitleActive]}>
-                  Technician
+                  {t('auth.roleStaff', 'Technician')}
                 </Text>
                 <Text style={styles.roleSubtext}>
-                  {isSignUp ? 'Receive & Resolve' : 'Staff Portal'}
+                  {isSignUp ? t('auth.staffReceiveResolve', 'Receive & Resolve') : t('auth.staffPortalSub', 'Staff Portal')}
                 </Text>
               </Pressable>
             </View>
@@ -354,10 +365,10 @@ export default function AuthScreen() {
             <View style={styles.inputGroup}>
               {isSignUp && (
                 <>
-                  <Text style={styles.inputLabel}>FULL NAME</Text>
+                  <Text style={styles.inputLabel}>{t('auth.fullName', 'FULL NAME')}</Text>
                   <TextInput
                     style={styles.input}
-                    placeholder="e.g. Alex Rivera"
+                    placeholder={t('auth.fullNamePlaceholder', 'e.g. Alex Rivera')}
                     placeholderTextColor={ExecutiveTheme.colors.textMuted}
                     value={fullName}
                     onChangeText={setFullName}
@@ -366,10 +377,10 @@ export default function AuthScreen() {
                 </>
               )}
 
-              <Text style={styles.inputLabel}>EMAIL ADDRESS</Text>
+              <Text style={styles.inputLabel}>{t('auth.email', 'EMAIL ADDRESS')}</Text>
               <TextInput
                 style={styles.input}
-                placeholder="name@example.com"
+                placeholder={t('auth.emailPlaceholder', 'name@example.com')}
                 placeholderTextColor={ExecutiveTheme.colors.textMuted}
                 value={email}
                 onChangeText={setEmail}
@@ -378,10 +389,10 @@ export default function AuthScreen() {
                 autoCorrect={false}
               />
 
-              <Text style={styles.inputLabel}>PASSWORD</Text>
+              <Text style={styles.inputLabel}>{t('auth.password', 'PASSWORD')}</Text>
               <TextInput
                 style={styles.input}
-                placeholder="Enter your password"
+                placeholder={t('auth.passwordPlaceholder', 'Enter your password')}
                 placeholderTextColor={ExecutiveTheme.colors.textMuted}
                 value={password}
                 onChangeText={setPassword}
@@ -404,8 +415,8 @@ export default function AuthScreen() {
               ) : (
                 <Text style={styles.submitButtonText}>
                   {isSignUp
-                    ? `Create ${role === 'maintenance_staff' ? 'Technician' : 'Resident'} Account`
-                    : `Sign In as ${role === 'maintenance_staff' ? 'Technician' : 'Resident'}`}
+                    ? `${t('auth.createAccountBtnPrefix', 'Create')} ${role === 'maintenance_staff' ? t('auth.roleStaff', 'Technician') : t('auth.roleResident', 'Resident')} ${t('auth.accountSuffix', 'Account')}`
+                    : `${t('auth.signInBtnPrefix', 'Sign In as')} ${role === 'maintenance_staff' ? t('auth.roleStaff', 'Technician') : t('auth.roleResident', 'Resident')}`}
                 </Text>
               )}
             </Pressable>
@@ -464,11 +475,11 @@ const styles = StyleSheet.create({
     marginRight: 6,
   },
   activeSegmentTab: {
-    backgroundColor: ExecutiveTheme.colors.surface,
+    backgroundColor: ExecutiveTheme.colors.surfaceElevated,
     elevation: 2,
-    shadowColor: '#1E293B',
+    shadowColor: '#000000',
     shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.06,
+    shadowOpacity: 0.2,
     shadowRadius: 3,
   },
   segmentText: {
@@ -482,15 +493,15 @@ const styles = StyleSheet.create({
   },
   card: {
     backgroundColor: ExecutiveTheme.colors.surface,
-    borderRadius: 18,
-    padding: 18,
+    borderRadius: 14,
+    padding: 16,
     borderWidth: 1,
     borderColor: ExecutiveTheme.colors.border,
-    elevation: 3,
-    shadowColor: '#1E293B',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.06,
-    shadowRadius: 10,
+    elevation: 2,
+    shadowColor: '#0F172A',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.04,
+    shadowRadius: 8,
   },
   sectionLabel: {
     fontSize: 11,
@@ -507,36 +518,36 @@ const styles = StyleSheet.create({
   roleCard: {
     flex: 1,
     backgroundColor: ExecutiveTheme.colors.backgroundSubtle,
-    borderRadius: 14,
+    borderRadius: 12,
     padding: 12,
     alignItems: 'center',
     borderWidth: 1.5,
     borderColor: ExecutiveTheme.colors.border,
-    minHeight: 88,
+    minHeight: 84,
     justifyContent: 'center',
   },
   roleCardActive: {
-    backgroundColor: ExecutiveTheme.colors.brandLightMuted,
+    backgroundColor: '#2B2B2B',
     borderColor: ExecutiveTheme.colors.brandPrimary,
-    elevation: 2,
+    elevation: 1,
   },
   roleIconCircle: {
-    width: 40,
-    height: 40,
-    borderRadius: 12,
-    backgroundColor: ExecutiveTheme.colors.brandLight,
+    width: 38,
+    height: 38,
+    borderRadius: 10,
+    backgroundColor: '#202020',
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 6,
     borderWidth: 0.8,
-    borderColor: ExecutiveTheme.colors.border,
+    borderColor: '#4A4A4A',
   },
   roleIconCircleActive: {
     backgroundColor: ExecutiveTheme.colors.brandPrimary,
     borderColor: ExecutiveTheme.colors.brandPrimary,
   },
   roleTitle: {
-    fontSize: 13.5,
+    fontSize: 13,
     fontWeight: '700',
     color: ExecutiveTheme.colors.textPrimary,
   },
@@ -545,48 +556,48 @@ const styles = StyleSheet.create({
     fontWeight: '800',
   },
   roleSubtext: {
-    fontSize: 10.5,
+    fontSize: 10,
     color: ExecutiveTheme.colors.textSecondary,
     marginTop: 2,
   },
   inputGroup: {
-    marginBottom: 16,
+    marginBottom: 14,
   },
   inputLabel: {
     fontSize: 11,
     fontWeight: '700',
     color: ExecutiveTheme.colors.textSecondary,
     marginBottom: 6,
-    marginTop: 8,
+    marginTop: 6,
     letterSpacing: 0.4,
   },
   input: {
-    height: 48,
+    height: 46,
     backgroundColor: ExecutiveTheme.colors.backgroundSubtle,
-    borderRadius: 12,
+    borderRadius: 10,
     paddingHorizontal: 14,
-    fontSize: 14.5,
+    fontSize: 14,
     color: ExecutiveTheme.colors.textPrimary,
     fontWeight: '500',
     borderWidth: 1,
     borderColor: ExecutiveTheme.colors.border,
   },
   submitButton: {
-    height: 50,
+    height: 48,
     backgroundColor: ExecutiveTheme.colors.brandPrimary,
-    borderRadius: 14,
+    borderRadius: 12,
     alignItems: 'center',
     justifyContent: 'center',
     marginTop: 6,
     elevation: 3,
-    shadowColor: '#4F46E5',
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.2,
-    shadowRadius: 6,
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 5,
   },
   submitButtonText: {
-    color: '#FFFFFF',
-    fontSize: 14.5,
+    color: '#111111',
+    fontSize: 14,
     fontWeight: '800',
     letterSpacing: 0.2,
   },
@@ -595,6 +606,6 @@ const styles = StyleSheet.create({
     transform: [{ scale: 0.99 }],
   },
   buttonDisabled: {
-    backgroundColor: '#A5B4FC',
+    backgroundColor: '#4A4A4A',
   },
 });

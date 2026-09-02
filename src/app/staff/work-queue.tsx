@@ -19,6 +19,7 @@ import {
 import { AppBottomNav } from '@/components/app-bottom-nav';
 import { PriorityBadge, StatusBadge } from '@/components/status-badge';
 import { ExecutiveTheme } from '@/constants/theme';
+import { useLanguage } from '@/context/language-context';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { supabase } from '@/lib/supabase';
 import { MaintenanceService } from '@/services/maintenance-service';
@@ -29,6 +30,7 @@ export default function StaffWorkQueueScreen() {
   const [tasks, setTasks] = useState<MaintenanceRequest[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const { t } = useLanguage();
 
   // Filters & Search
   const [searchQuery, setSearchQuery] = useState('');
@@ -130,26 +132,23 @@ export default function StaffWorkQueueScreen() {
   });
 
   const insets = useSafeAreaInsets();
-  const topPadding = Math.max(
-    insets.top,
-    Platform.OS === 'android' ? (StatusBar.currentHeight || 28) : 10
-  );
+  const topPadding = Platform.OS === 'web' ? 10 : Math.max(insets.top, Platform.OS === 'android' ? (StatusBar.currentHeight || 24) : 10) + 4;
 
   return (
     <SafeAreaView style={styles.screen}>
-      <StatusBar barStyle="dark-content" backgroundColor={ExecutiveTheme.colors.surface} />
+      <StatusBar barStyle="light-content" backgroundColor={ExecutiveTheme.colors.surface} />
 
       {/* Top Header App Bar */}
-      <View style={[styles.headerWrapper, { paddingTop: topPadding + 6 }]}>
+      <View style={[styles.headerWrapper, { paddingTop: topPadding }]}>
         <View style={styles.headerRow}>
           <View style={styles.headerLeft}>
             <View style={styles.avatarBadge}>
               <Ionicons name="construct" size={20} color="#FFFFFF" />
             </View>
             <View>
-              <Text style={styles.headerTitle}>Staff Work Queue</Text>
+              <Text style={styles.headerTitle}>{t('workQueue.headerTitle', 'Staff Work Queue')}</Text>
               <Text style={styles.headerSubtitle}>
-                {filteredTasks.length} active order(s) requiring attention
+                {filteredTasks.length} {t('workQueue.headerSubtitle', 'active order(s) requiring attention')}
               </Text>
             </View>
           </View>
@@ -157,7 +156,7 @@ export default function StaffWorkQueueScreen() {
           <View style={styles.headerRightGroup}>
             <View style={styles.statusPill}>
               <View style={styles.statusDot} />
-              <Text style={styles.statusPillText}>Live Queue</Text>
+              <Text style={styles.statusPillText}>{t('workQueue.liveQueue', 'Live Queue')}</Text>
             </View>
             <Pressable
               style={({ pressed }) => [styles.refreshIconBtn, pressed && styles.pressed]}
@@ -176,6 +175,7 @@ export default function StaffWorkQueueScreen() {
       {/* Main Feed Container */}
       <View style={styles.mainFeedWrapper}>
         <FlatList
+          style={styles.flatList}
           data={filteredTasks}
           keyExtractor={(item) => item.id}
           contentContainerStyle={styles.listContent}
@@ -197,7 +197,7 @@ export default function StaffWorkQueueScreen() {
                 <Ionicons name="search-outline" size={18} color={ExecutiveTheme.colors.textMuted} />
                 <TextInput
                   style={styles.searchInput}
-                  placeholder="Search by issue title, resident, or REF #"
+                  placeholder={t('workQueue.searchPlaceholder', 'Search by issue title, resident, or REF #')}
                   placeholderTextColor={ExecutiveTheme.colors.textMuted}
                   value={searchQuery}
                   onChangeText={setSearchQuery}
@@ -212,11 +212,11 @@ export default function StaffWorkQueueScreen() {
               {/* Status Filter Chips */}
               <View style={styles.filterChipRow}>
                 {[
-                  { id: 'all', label: `All Active (${activeTasks.length})` },
-                  { id: 'in_progress', label: 'In Progress' },
-                  { id: 'assigned', label: 'Assigned' },
-                  { id: 'on_hold', label: 'On Hold' },
-                  { id: 'urgent', label: '🚨 Urgent' },
+                  { id: 'all', label: `${t('workQueue.allActive', 'All Active')} (${activeTasks.length})` },
+                  { id: 'in_progress', label: t('status.in_progress', 'In Progress') },
+                  { id: 'assigned', label: t('status.assigned', 'Assigned') },
+                  { id: 'on_hold', label: t('status.on_hold', 'On Hold') },
+                  { id: 'urgent', label: `🚨 ${t('priority.emergency', 'Urgent')}` },
                 ].map((chip) => {
                   const isActive = statusFilter === chip.id;
                   return (
@@ -235,16 +235,22 @@ export default function StaffWorkQueueScreen() {
 
               {/* Category Filter Chips */}
               <View style={styles.categoryChipRow}>
-                {['all', 'Electrical', 'Plumbing', 'HVAC', 'General'].map((cat) => {
-                  const isActive = categoryFilter === cat;
+                {[
+                  { id: 'all', label: t('workQueue.allCategories', 'All Categories') },
+                  { id: 'Electrical', label: t('categories.electrical', 'Electrical') },
+                  { id: 'Plumbing', label: t('categories.plumbing', 'Plumbing') },
+                  { id: 'HVAC', label: t('categories.hvac', 'HVAC') },
+                  { id: 'General', label: t('categories.general', 'General') },
+                ].map((cat) => {
+                  const isActive = categoryFilter === cat.id;
                   return (
                     <Pressable
-                      key={cat}
+                      key={cat.id}
                       style={[styles.catChip, isActive && styles.catChipActive]}
-                      onPress={() => setCategoryFilter(cat as any)}
+                      onPress={() => setCategoryFilter(cat.id as any)}
                     >
                       <Text style={[styles.catChipText, isActive && styles.catChipTextActive]}>
-                        {cat === 'all' ? 'All Categories' : cat}
+                        {cat.label}
                       </Text>
                     </Pressable>
                   );
@@ -256,18 +262,16 @@ export default function StaffWorkQueueScreen() {
             loading ? (
               <View style={styles.centerContainer}>
                 <ActivityIndicator size="large" color={ExecutiveTheme.colors.brandPrimary} />
-                <Text style={styles.loadingText}>Syncing dispatch queue...</Text>
+                <Text style={styles.loadingText}>{t('common.loading', 'Loading...')}</Text>
               </View>
             ) : (
               <View style={styles.emptyCard}>
                 <View style={styles.emptyIconCircle}>
-                  <Ionicons name="checkmark-done-outline" size={28} color={ExecutiveTheme.colors.brandPrimary} />
+                  <Ionicons name="search" size={28} color={ExecutiveTheme.colors.brandPrimary} />
                 </View>
-                <Text style={styles.emptyTitle}>Queue Clear</Text>
+                <Text style={styles.emptyTitle}>{t('workQueue.emptyTitle', 'No Matching Work Orders')}</Text>
                 <Text style={styles.emptySub}>
-                  {searchQuery || statusFilter !== 'all' || categoryFilter !== 'all'
-                    ? 'No maintenance tasks match your active filters.'
-                    : 'All work orders are resolved. Great job!'}
+                  {t('workQueue.emptySub', 'No tasks found matching your filter criteria.')}
                 </Text>
               </View>
             )
@@ -293,23 +297,34 @@ export default function StaffWorkQueueScreen() {
                         month: 'short',
                         day: 'numeric',
                       })
-                    : 'Today'}
+                    : t('common.today', 'Today')}
                 </Text>
               </View>
 
               <Text style={styles.taskTitle} numberOfLines={2}>
                 {item.title}
               </Text>
-              <Text style={styles.taskDesc} numberOfLines={2}>
-                {item.description}
-              </Text>
-
-              {/* Resident Info Box */}
-              <View style={styles.residentBox}>
-                <Text style={styles.residentLabel}>RESIDENT:</Text>
-                <Text style={styles.residentName}>
-                  {item.requester?.full_name || item.requester?.email || 'Resident'}
+              {item.description ? (
+                <Text style={styles.taskDesc} numberOfLines={2}>
+                  {item.description}
                 </Text>
+              ) : null}
+
+              {/* Clean Resident Info Row */}
+              <View style={styles.residentBox}>
+                <View style={styles.residentAvatarMini}>
+                  <Ionicons name="person" size={11} color={ExecutiveTheme.colors.brandPrimary} />
+                </View>
+                <Text style={styles.residentName}>
+                  {item.requester?.full_name || item.requester?.email || t('auth.resident', 'Resident')}
+                </Text>
+                {item.equipment?.name && (
+                  <>
+                    <Text style={styles.dotSeparator}>•</Text>
+                    <Ionicons name="hardware-chip-outline" size={12} color={ExecutiveTheme.colors.textSecondary} />
+                    <Text style={styles.equipmentNameText} numberOfLines={1}>{item.equipment.name}</Text>
+                  </>
+                )}
               </View>
 
               {item.photos && item.photos.length > 0 && (
@@ -335,7 +350,7 @@ export default function StaffWorkQueueScreen() {
                   REF: #{(item.id || '').slice(0, 8).toUpperCase()}
                 </Text>
                 <View style={styles.openWorkspaceChip}>
-                  <Text style={styles.openWorkspaceText}>Open Workspace</Text>
+                  <Text style={styles.openWorkspaceText}>{t('common.openWorkspace', 'Open Workspace')}</Text>
                   <Ionicons name="chevron-forward" size={13} color="#FFFFFF" />
                 </View>
               </View>
@@ -344,7 +359,7 @@ export default function StaffWorkQueueScreen() {
         />
       </View>
 
-      <AppBottomNav activeTab="tasks" role="maintenance_staff" />
+      <AppBottomNav activeTab="tasks" isStaff={true} />
     </SafeAreaView>
   );
 }
@@ -373,29 +388,29 @@ const styles = StyleSheet.create({
   headerLeft: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
+    gap: 10,
+    flex: 1,
+    minWidth: 0,
+    paddingRight: 8,
   },
   avatarBadge: {
-    width: 42,
-    height: 42,
-    borderRadius: 13,
-    backgroundColor: ExecutiveTheme.colors.brandPrimary,
+    width: 38,
+    height: 38,
+    borderRadius: 12,
+    backgroundColor: '#262626',
+    borderWidth: 1,
+    borderColor: '#F5C400',
     alignItems: 'center',
     justifyContent: 'center',
-    elevation: 2,
-    shadowColor: '#4F46E5',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
   },
   headerTitle: {
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: '800',
     color: ExecutiveTheme.colors.textPrimary,
     letterSpacing: -0.3,
   },
   headerSubtitle: {
-    fontSize: 11.5,
+    fontSize: 11,
     color: ExecutiveTheme.colors.textSecondary,
     fontWeight: '500',
     marginTop: 1,
@@ -409,29 +424,29 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-    backgroundColor: '#EFF6FF',
-    paddingHorizontal: 10,
-    paddingVertical: 5,
+    backgroundColor: '#1E1E1E',
+    paddingHorizontal: 9,
+    paddingVertical: 4,
     borderRadius: 20,
     borderWidth: 1,
-    borderColor: '#BFDBFE',
+    borderColor: '#333333',
   },
   statusDot: {
-    width: 7,
-    height: 7,
-    borderRadius: 3.5,
-    backgroundColor: '#2563EB',
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: '#F5C400',
   },
   statusPillText: {
-    fontSize: 11.5,
+    fontSize: 11,
     fontWeight: '700',
-    color: '#1D4ED8',
+    color: '#F5C400',
   },
   refreshIconBtn: {
     width: 34,
     height: 34,
     borderRadius: 10,
-    backgroundColor: ExecutiveTheme.colors.backgroundSubtle,
+    backgroundColor: ExecutiveTheme.colors.surfaceElevated,
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1,
@@ -461,9 +476,9 @@ const styles = StyleSheet.create({
     height: 48,
     gap: 10,
     elevation: 2,
-    shadowColor: '#1E293B',
+    shadowColor: '#000000',
     shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.04,
+    shadowOpacity: 0.2,
     shadowRadius: 4,
   },
   searchInput: {
@@ -496,7 +511,7 @@ const styles = StyleSheet.create({
     color: ExecutiveTheme.colors.textSecondary,
   },
   filterChipTextActive: {
-    color: '#FFFFFF',
+    color: '#111111',
     fontWeight: '800',
   },
   categoryChipRow: {
@@ -514,8 +529,8 @@ const styles = StyleSheet.create({
     borderColor: ExecutiveTheme.colors.border,
   },
   catChipActive: {
-    backgroundColor: ExecutiveTheme.colors.brandLight,
-    borderColor: ExecutiveTheme.colors.accentGoldBorder,
+    backgroundColor: '#2B2B2B',
+    borderColor: '#F5C400',
   },
   catChipText: {
     fontSize: 11.5,
@@ -523,27 +538,31 @@ const styles = StyleSheet.create({
     color: ExecutiveTheme.colors.textSecondary,
   },
   catChipTextActive: {
-    color: ExecutiveTheme.colors.brandPrimary,
+    color: '#F5C400',
     fontWeight: '700',
+  },
+  flatList: {
+    width: '100%',
+    maxWidth: ExecutiveTheme.MaxContentWidth,
+    alignSelf: 'center',
   },
   listContent: {
     paddingHorizontal: 16,
     paddingBottom: 90,
     gap: 12,
     width: '100%',
-    maxWidth: ExecutiveTheme.MaxContentWidth,
   },
   taskCard: {
     backgroundColor: ExecutiveTheme.colors.surface,
-    borderRadius: 16,
-    padding: 16,
+    borderRadius: 12,
+    padding: 14,
     borderWidth: 1,
     borderColor: ExecutiveTheme.colors.border,
-    elevation: 2,
-    shadowColor: '#1E293B',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.04,
-    shadowRadius: 8,
+    elevation: 1,
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.2,
+    shadowRadius: 5,
   },
   cardPressed: {
     opacity: 0.88,
@@ -553,104 +572,127 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 8,
+    marginBottom: 6,
   },
   badgesRow: {
     flexDirection: 'row',
     gap: 6,
   },
   cardDate: {
-    fontSize: 11.5,
+    fontSize: 11,
     color: ExecutiveTheme.colors.textSecondary,
     fontWeight: '600',
   },
   taskTitle: {
-    fontSize: 15,
+    fontSize: 14.5,
     fontWeight: '800',
     color: ExecutiveTheme.colors.textPrimary,
     letterSpacing: -0.2,
-    marginBottom: 4,
+    marginBottom: 3,
   },
   taskDesc: {
-    fontSize: 13,
+    fontSize: 12.5,
     color: ExecutiveTheme.colors.textSecondary,
-    lineHeight: 18,
-    marginBottom: 8,
+    lineHeight: 17,
+    marginBottom: 6,
   },
   residentBox: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
+    gap: 5,
     backgroundColor: ExecutiveTheme.colors.backgroundSubtle,
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 8,
+    paddingHorizontal: 8,
+    paddingVertical: 3.5,
+    borderRadius: 6,
+    alignSelf: 'flex-start',
     marginBottom: 8,
+    borderWidth: 0.8,
+    borderColor: ExecutiveTheme.colors.border,
   },
-  residentLabel: {
-    fontSize: 9.5,
-    fontWeight: '800',
-    color: ExecutiveTheme.colors.textSecondary,
+  residentAvatarMini: {
+    width: 18,
+    height: 18,
+    borderRadius: 9,
+    backgroundColor: '#2B2B2B',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   residentName: {
-    fontSize: 12,
+    fontSize: 11.5,
     fontWeight: '700',
     color: ExecutiveTheme.colors.textPrimary,
+  },
+  dotSeparator: {
+    color: '#888888',
+    fontSize: 11,
+    marginHorizontal: 1,
+  },
+  equipmentNameText: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: ExecutiveTheme.colors.textSecondary,
   },
   thumbnailRow: {
     flexDirection: 'row',
     gap: 6,
-    marginBottom: 10,
+    marginBottom: 8,
   },
   thumbImage: {
-    width: 46,
-    height: 46,
+    width: 44,
+    height: 44,
     borderRadius: 8,
-    backgroundColor: ExecutiveTheme.colors.backgroundSubtle,
-    borderWidth: 0.8,
+    backgroundColor: '#2B2B2B',
+    borderWidth: 1,
     borderColor: ExecutiveTheme.colors.border,
   },
   morePhotosBadge: {
-    width: 46,
-    height: 46,
+    width: 44,
+    height: 44,
     borderRadius: 8,
-    backgroundColor: ExecutiveTheme.colors.backgroundSubtle,
+    backgroundColor: '#2B2B2B',
     alignItems: 'center',
     justifyContent: 'center',
-    borderWidth: 0.8,
+    borderWidth: 1,
     borderColor: ExecutiveTheme.colors.border,
   },
   morePhotosText: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: ExecutiveTheme.colors.textSecondary,
+    fontSize: 11.5,
+    fontWeight: '800',
+    color: '#F5C400',
   },
   cardFooter: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingTop: 10,
-    borderTopWidth: 0.8,
+    paddingTop: 8,
+    borderTopWidth: 1,
     borderTopColor: ExecutiveTheme.colors.borderSubtle,
   },
   workOrderRef: {
-    fontSize: 11,
+    fontSize: 10.5,
     fontWeight: '700',
-    color: ExecutiveTheme.colors.textMuted,
+    color: '#888888',
+    letterSpacing: 0.2,
   },
   openWorkspaceChip: {
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
     gap: 4,
     backgroundColor: ExecutiveTheme.colors.brandPrimary,
     paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 9,
+    height: 32,
+    borderRadius: 8,
+    elevation: 1,
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.2,
+    shadowRadius: 3,
   },
   openWorkspaceText: {
-    color: '#FFFFFF',
-    fontSize: 12,
-    fontWeight: '700',
+    color: '#111111',
+    fontSize: 11.5,
+    fontWeight: '800',
   },
   centerContainer: {
     alignItems: 'center',

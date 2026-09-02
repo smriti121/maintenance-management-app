@@ -1,4 +1,4 @@
-import { Ionicons } from '@expo/vector-icons';
+import { FontAwesome5 } from '@expo/vector-icons';
 import React from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { ExecutiveTheme } from '@/constants/theme';
@@ -18,30 +18,18 @@ export function BrandLogo({
   const isLarge = size === 'large';
 
   const iconBoxSize = isSmall ? 40 : isLarge ? 72 : 56;
-  const iconSize = isSmall ? 20 : isLarge ? 34 : 26;
+  const iconSize = isSmall ? 18 : isLarge ? 32 : 24;
 
   return (
     <View style={[styles.container, align === 'left' && styles.alignLeft]}>
-      {/* Premium Multi-Layered Geometric Emblem */}
+      {/* Brand Icon Emblem */}
       <View
         style={[
           styles.emblemOuter,
-          { width: iconBoxSize, height: iconBoxSize, borderRadius: iconBoxSize * 0.32 },
+          { width: iconBoxSize, height: iconBoxSize, borderRadius: iconBoxSize * 0.28 },
         ]}
       >
-        <View
-          style={[
-            styles.emblemInner,
-            { width: iconBoxSize - 6, height: iconBoxSize - 6, borderRadius: (iconBoxSize - 6) * 0.3 },
-          ]}
-        >
-          <View style={styles.iconLayer}>
-            <Ionicons name="shield-checkmark" size={iconSize} color="#FFFFFF" />
-          </View>
-          <View style={styles.sparkleAccent}>
-            <Ionicons name="sparkles" size={iconSize * 0.45} color="#A5B4FC" />
-          </View>
-        </View>
+        <FontAwesome5 name="tools" size={iconSize} color="#111111" />
       </View>
 
       {/* Typography */}
@@ -72,33 +60,15 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   emblemOuter: {
-    backgroundColor: '#3730A3',
+    backgroundColor: '#F5C400',
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 10,
-    borderWidth: 1.5,
-    borderColor: '#6366F1',
-    shadowColor: '#4F46E5',
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.25,
-    shadowRadius: 12,
-    elevation: 8,
-  },
-  emblemInner: {
-    backgroundColor: '#4F46E5',
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.25)',
-  },
-  iconLayer: {
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  sparkleAccent: {
-    position: 'absolute',
-    top: 3,
-    right: 4,
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.35,
+    shadowRadius: 8,
+    elevation: 6,
   },
   textGroup: {
     alignItems: 'center',
@@ -125,20 +95,20 @@ const styles = StyleSheet.create({
     fontSize: 28,
   },
   titleHighlight: {
-    color: '#4F46E5',
+    color: ExecutiveTheme.colors.brandPrimary,
   },
   proBadge: {
-    backgroundColor: '#EEF2FF',
+    backgroundColor: '#202020',
     paddingHorizontal: 6,
     paddingVertical: 2,
     borderRadius: 5,
     borderWidth: 1,
-    borderColor: '#C7D2FE',
+    borderColor: '#F5C400',
   },
   proBadgeText: {
     fontSize: 9,
     fontWeight: '800',
-    color: '#4F46E5',
+    color: '#F5C400',
     letterSpacing: 0.6,
   },
   subtitle: {

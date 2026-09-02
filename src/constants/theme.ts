@@ -2,110 +2,121 @@ import '@/global.css';
 import { Platform } from 'react-native';
 
 /**
- * Royal Indigo & Sapphire Luxury Theme Tokens
- * Clean, light, luminous, and executive palette with refined indigo & sapphire accents
+ * FixFlow Professional Dark / Black / Charcoal Executive Theme Tokens
+ * Enterprise high-contrast dark aesthetic with Deep Obsidian, Dark Slate, Charcoal, and Tech Cobalt Accents
  */
 export const ExecutiveTheme = {
   colors: {
-    // Surfaces & Backgrounds (Luminous & Airy)
-    background: '#F8FAFC', // Luminous Pearl Off-White Canvas
-    backgroundSubtle: '#F1F5F9', // Crisp Neutral Slate Background
-    surface: '#FFFFFF', // Pure Crisp White Card Surface
-    surfaceElevated: '#FFFFFF',
-    surfaceMuted: '#F8FAFC',
-    surfaceSubtle: '#EEF2FF', // Soft Indigo Surface Highlight
+    // Surfaces & Backgrounds (Black, Dark Charcoal & Dark Grey)
+    background: '#111111', // Main App Canvas: Deep Industrial Black
+    backgroundSubtle: '#202020', // Secondary surface / inputs / backdrop: Dark charcoal
+    surface: '#202020', // Card & App Bar Surface: Dark charcoal
+    surfaceElevated: '#2B2B2B', // Elevated elements & modal containers: Dark grey
+    surfaceMuted: '#2B2B2B', // Muted container background
+    surfaceSubtle: '#2B2B2B', // Subtle accent pill background
 
-    // Royal Indigo & Sapphire Brand Accents
-    brandPrimary: '#4F46E5', // Luxury Royal Indigo Primary
-    brandPrimaryHover: '#4338CA', // Deep Royal Indigo Hover
-    brandLight: '#EEF2FF', // Luminous Soft Indigo Mist
-    brandLightMuted: '#F5F3FF', // Very Light Lavender Glow
-    brandDark: '#4338CA',
-    brandDarkHover: '#3730A3',
+    // Yellow Brand Accents
+    brandPrimary: '#F5C400', // Yellow accent
+    brandPrimaryLight: '#F5C400', // Yellow accent
+    brandPrimaryHover: '#D9A900', // Dark yellow / gold for pressed states
+    brandLight: '#2B2B2B', // Dark grey container
+    brandLightMuted: 'rgba(245, 196, 0, 0.12)', // Subtle yellow glow
+    brandDark: '#D9A900',
+    brandDarkHover: '#B88E00',
 
-    // Secondary Accents (Sapphire & Warm Amber)
-    accentGold: '#6366F1', // Royal Violet Accent
-    accentGoldLight: '#EEF2FF',
-    accentGoldBorder: '#C7D2FE',
-    accentCopper: '#4F46E5',
-    accentCopperLight: '#EDE9FE',
+    // Discipline & Secondary Accents (Industrial Grey + Yellow Palette)
+    accentIndigo: '#F5C400', // Electrical (Yellow)
+    accentIndigoLight: '#2B2B2B',
+    accentIndigoBorder: '#F5C400',
+    accentRose: '#E5E5E5', // Plumbing / Fixtures (Light grey)
+    accentRoseLight: '#2B2B2B',
+    accentRoseBorder: '#4A4A4A',
+    accentAmber: '#F5C400', // Priority (Yellow)
+    accentAmberLight: '#2B2B2B',
+    accentAmberBorder: '#D9A900',
+    accentEmerald: '#F5C400', // Resolved / Success (Yellow accent)
+    accentEmeraldLight: '#2B2B2B',
+    accentEmeraldBorder: '#4A4A4A',
+    accentCoral: '#F5C400', // Urgent / Critical (Yellow)
+    accentCoralLight: '#2B2B2B',
+    accentCoralBorder: '#F5C400',
 
-    // Typography (Sophisticated Deep Slate — ZERO harsh pure black)
-    textPrimary: '#1E293B', // Rich Deep Slate (High contrast, easy on eyes)
-    textSecondary: '#64748B', // Balanced Neutral Slate
-    textMuted: '#94A3B8', // Subtitle & Timestamp Silver
+    // Typography (High Contrast Clean White & Greys)
+    textPrimary: '#FFFFFF', // Bright Crisp White Headings
+    textSecondary: '#E5E5E5', // Light Grey Subtext
+    textMuted: '#888888', // Timestamps & Placeholder Grey
     textLight: '#FFFFFF',
 
-    // Borders & Dividers (Frosted & Crisp)
-    border: '#E2E8F0', // Soft Crisp Border
-    borderSubtle: '#F1F5F9',
-    borderDark: '#CBD5E1',
+    // Borders & Dividers (Dark & Medium Grey Outlines)
+    border: '#2B2B2B', // Card Borders: Dark grey
+    borderSubtle: '#202020', // Subtle Dividers
+    borderDark: '#4A4A4A', // Medium grey outline
 
-    // Status Badges (Refined Gemstone Pastels)
-    statusPendingBg: '#F1F5F9',
-    statusPendingText: '#475569',
-    statusPendingBorder: '#E2E8F0',
+    // Status Badges (Grey + Yellow System)
+    statusPendingBg: '#2B2B2B',
+    statusPendingText: '#E5E5E5',
+    statusPendingBorder: '#4A4A4A',
 
-    statusAssignedBg: '#EEF2FF',
-    statusAssignedText: '#4F46E5',
-    statusAssignedBorder: '#C7D2FE',
+    statusAssignedBg: '#2B2B2B',
+    statusAssignedText: '#F5C400',
+    statusAssignedBorder: '#F5C400',
 
-    statusProgressBg: '#EFF6FF',
-    statusProgressText: '#2563EB',
-    statusProgressBorder: '#BFDBFE',
+    statusProgressBg: '#202020',
+    statusProgressText: '#F5C400',
+    statusProgressBorder: '#F5C400',
 
-    statusHoldBg: '#FFFBEB',
-    statusHoldText: '#D97706',
-    statusHoldBorder: '#FDE68A',
+    statusHoldBg: '#2B2B2B',
+    statusHoldText: '#E5E5E5',
+    statusHoldBorder: '#4A4A4A',
 
-    statusCompletedBg: '#ECFDF5',
-    statusCompletedText: '#059669',
-    statusCompletedBorder: '#A7F3D0',
+    statusCompletedBg: '#202020',
+    statusCompletedText: '#FFFFFF',
+    statusCompletedBorder: '#4A4A4A',
 
-    statusUrgentBg: '#FFF1F2',
-    statusUrgentText: '#E11D48',
-    statusUrgentBorder: '#FECDD3',
+    statusUrgentBg: '#202020',
+    statusUrgentText: '#F5C400',
+    statusUrgentBorder: '#F5C400',
   },
   shadows: {
     soft: {
-      shadowColor: '#4F46E5',
+      shadowColor: '#000000',
       shadowOffset: { width: 0, height: 2 },
-      shadowOpacity: 0.06,
+      shadowOpacity: 0.35,
       shadowRadius: 8,
-      elevation: 2,
+      elevation: 3,
     },
     card: {
-      shadowColor: '#1E293B',
-      shadowOffset: { width: 0, height: 4 },
-      shadowOpacity: 0.05,
-      shadowRadius: 14,
+      shadowColor: '#000000',
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.4,
+      shadowRadius: 10,
       elevation: 3,
     },
     modal: {
-      shadowColor: '#1E1B4B',
+      shadowColor: '#000000',
       shadowOffset: { width: 0, height: 10 },
-      shadowOpacity: 0.14,
+      shadowOpacity: 0.6,
       shadowRadius: 24,
-      elevation: 10,
+      elevation: 12,
     },
   },
   radius: {
     sm: 8,
     md: 12,
-    lg: 16,
-    xl: 20,
+    lg: 14,
+    xl: 18,
     full: 9999,
   },
   layout: {
     screenPadding: 16,
-    touchTarget: 48,
-    inputHeight: 48,
-    buttonHeight: 50,
-    headerHeight: 56,
+    touchTarget: 46,
+    inputHeight: 46,
+    buttonHeight: 48,
+    headerHeight: 54,
     bottomNavHeight: 58,
   },
-  MaxContentWidth: 780,
-  maxContentWidth: 780,
+  MaxContentWidth: 540,
+  maxContentWidth: 540,
 };
 
 /**
@@ -130,18 +141,18 @@ export function formatINR(amount: number | string | null | undefined): string {
 
 export const Colors = {
   light: {
-    text: '#1E293B',
-    background: '#F8FAFC',
-    backgroundElement: '#F1F5F9',
-    backgroundSelected: '#EEF2FF',
-    textSecondary: '#64748B',
+    text: '#FFFFFF',
+    background: '#111111',
+    backgroundElement: '#202020',
+    backgroundSelected: '#2B2B2B',
+    textSecondary: '#E5E5E5',
   },
   dark: {
-    text: '#F8FAFC',
-    background: '#0F172A',
-    backgroundElement: '#1E293B',
-    backgroundSelected: '#312E81',
-    textSecondary: '#94A3B8',
+    text: '#FFFFFF',
+    background: '#111111',
+    backgroundElement: '#202020',
+    backgroundSelected: '#2B2B2B',
+    textSecondary: '#E5E5E5',
   },
 } as const;
 

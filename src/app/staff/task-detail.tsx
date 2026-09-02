@@ -16,10 +16,12 @@ import {
   View,
 } from 'react-native';
 
+import { EquipmentTagCard } from '@/components/equipment-tag-card';
 import { ExecutiveHeader } from '@/components/executive-header';
 import { PriorityBadge, StatusBadge } from '@/components/status-badge';
 import { TimelineView } from '@/components/timeline-view';
 import { ExecutiveTheme, formatINR } from '@/constants/theme';
+import { useLanguage } from '@/context/language-context';
 import { supabase } from '@/lib/supabase';
 import { AiService, AiTriageResult } from '@/services/ai-service';
 import { MaintenanceService } from '@/services/maintenance-service';
@@ -40,6 +42,7 @@ export default function StaffTaskDetailScreen() {
   const [submitting, setSubmitting] = useState(false);
   const [pdfGenerating, setPdfGenerating] = useState(false);
   const [fullscreenPhoto, setFullscreenPhoto] = useState<string | null>(null);
+  const { t } = useLanguage();
 
   // Status Change Modal State
   const [statusModalVisible, setStatusModalVisible] = useState(false);
@@ -135,7 +138,7 @@ export default function StaffTaskDetailScreen() {
       }
     } catch (err: any) {
       console.error('Error loading task:', err);
-      showAlert('Error', err?.message || 'Could not load task details.');
+      showAlert(t('taskDetail.alerts.errorTitle', 'Error'), err?.message || 'Could not load task details.');
     } finally {
       setLoading(false);
     }
@@ -161,10 +164,10 @@ export default function StaffTaskDetailScreen() {
       );
 
       setTask((prev) => (prev ? { ...prev, status: newStatus } : null));
-      showAlert('Status Updated', `Task status changed to ${newStatus.replace(/_/g, ' ').toUpperCase()}`);
+      showAlert(t('taskDetail.alerts.statusUpdatedTitle', 'Status Updated'), `${t('taskDetail.alerts.statusChangedTo', 'Task status changed to')} ${newStatus.replace(/_/g, ' ').toUpperCase()}`);
     } catch (err: any) {
       console.error('Quick status update error:', err);
-      showAlert('Status Notice', err?.message || 'Could not update status.');
+      showAlert(t('taskDetail.alerts.statusNoticeTitle', 'Status Notice'), err?.message || 'Could not update status.');
     } finally {
       setSubmitting(false);
     }
@@ -178,7 +181,7 @@ export default function StaffTaskDetailScreen() {
       await PdfService.exportPdfReport(task);
     } catch (err: any) {
       console.error('PDF generation error:', err);
-      showAlert('Export Failed', err?.message || 'Could not export PDF report.');
+      showAlert(t('taskDetail.alerts.exportFailedTitle', 'Export Failed'), err?.message || 'Could not export PDF report.');
     } finally {
       setPdfGenerating(false);
     }
@@ -205,9 +208,9 @@ export default function StaffTaskDetailScreen() {
       setStatusModalVisible(false);
       setStatusNote('');
       await loadTask();
-      showAlert('Status Updated', `Task status changed to ${selectedStatus.replace('_', ' ').toUpperCase()}`);
+      showAlert(t('taskDetail.alerts.statusUpdatedTitle', 'Status Updated'), `${t('taskDetail.alerts.statusChangedTo', 'Task status changed to')} ${selectedStatus.replace('_', ' ').toUpperCase()}`);
     } catch (err: any) {
-      showAlert('Notice', err?.message || 'Could not update status.');
+      showAlert(t('taskDetail.alerts.noticeTitle', 'Notice'), err?.message || 'Could not update status.');
     } finally {
       setSubmitting(false);
     }
@@ -226,9 +229,9 @@ export default function StaffTaskDetailScreen() {
       await MaintenanceService.addStaffNote(task.id, user.id, noteText.trim());
       setNoteText('');
       await loadTask();
-      showAlert('Note Posted', 'Progress update logged into immutable audit trail.');
+      showAlert(t('taskDetail.alerts.notePostedTitle', 'Note Posted'), t('taskDetail.alerts.notePostedMsg', 'Progress update logged into immutable audit trail.'));
     } catch (err: any) {
-      showAlert('Notice', err?.message || 'Could not add note.');
+      showAlert(t('taskDetail.alerts.noticeTitle', 'Notice'), err?.message || 'Could not add note.');
     } finally {
       setSubmitting(false);
     }
@@ -240,7 +243,7 @@ export default function StaffTaskDetailScreen() {
     try {
       const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
       if (status !== 'granted') {
-        showAlert('Permission Required', 'FixFlow requires photo access to attach inspection photos.');
+        showAlert(t('taskDetail.alerts.permissionRequiredTitle', 'Permission Required'), t('taskDetail.alerts.photoPermissionMsg', 'FixFlow requires photo access to attach inspection photos.'));
         return;
       }
 
@@ -279,11 +282,11 @@ export default function StaffTaskDetailScreen() {
         );
 
         await loadTask();
-        showAlert('Photo Uploaded', `${photoType.toUpperCase()} photo attached to task.`);
+        showAlert(t('taskDetail.alerts.photoUploadedTitle', 'Photo Uploaded'), `${photoType.toUpperCase()} ${t('taskDetail.alerts.photoAttachedMsg', 'photo attached to task.')}`);
       }
     } catch (err: any) {
       console.error('Photo upload error:', err);
-      showAlert('Photo Notice', err?.message || 'Could not upload photo.');
+      showAlert(t('taskDetail.alerts.photoNoticeTitle', 'Photo Notice'), err?.message || 'Could not upload photo.');
     } finally {
       setSubmitting(false);
     }
@@ -294,12 +297,12 @@ export default function StaffTaskDetailScreen() {
     if (!task) return;
     const mins = parseInt(timeMinutes.trim(), 10);
     if (isNaN(mins) || mins <= 0) {
-      showAlert('Invalid Time', 'Please enter a valid positive duration in minutes.');
+      showAlert(t('taskDetail.alerts.invalidTimeTitle', 'Invalid Time'), t('taskDetail.alerts.invalidTimeMsg', 'Please enter a valid positive duration in minutes.'));
       return;
     }
 
     if (!timeDescription.trim()) {
-      showAlert('Missing Description', 'Please enter a short description of the work performed.');
+      showAlert(t('taskDetail.alerts.missingDescTitle', 'Missing Description'), t('taskDetail.alerts.missingDescMsg', 'Please enter a short description of the work performed.'));
       return;
     }
 
@@ -315,10 +318,10 @@ export default function StaffTaskDetailScreen() {
       setTimeMinutes('');
       setTimeDescription('');
       await loadTask();
-      showAlert('Time Recorded', `Logged ${mins} minutes for this task.`);
+      showAlert(t('taskDetail.alerts.timeRecordedTitle', 'Time Recorded'), `${t('taskDetail.alerts.loggedPrefix', 'Logged')} ${mins} ${t('taskDetail.alerts.minsForTask', 'minutes for this task.')}`);
     } catch (err: any) {
       console.error('Time log error:', err);
-      showAlert('Time Log Notice', err?.message || 'Could not log time.');
+      showAlert(t('taskDetail.alerts.timeLogNoticeTitle', 'Time Log Notice'), err?.message || 'Could not log time.');
     } finally {
       setSubmitting(false);
     }
@@ -360,10 +363,10 @@ export default function StaffTaskDetailScreen() {
           : null
       );
 
-      showAlert('Details Saved ✅', 'Financial quotes, warranty, and replacement details saved in ₹ INR.');
+      showAlert(t('taskDetail.alerts.detailsSavedTitle', 'Details Saved ✅'), t('taskDetail.alerts.detailsSavedMsg', 'Financial quotes, warranty, and replacement details saved in ₹ INR.'));
     } catch (err: any) {
       console.error('Save repair details notice:', err);
-      showAlert('Save Notice', err?.message || 'Could not save repair details.');
+      showAlert(t('taskDetail.alerts.saveNoticeTitle', 'Save Notice'), err?.message || 'Could not save repair details.');
     } finally {
       setSubmitting(false);
     }
@@ -404,10 +407,10 @@ export default function StaffTaskDetailScreen() {
   if (loading) {
     return (
       <SafeAreaView style={styles.screen}>
-        <ExecutiveHeader title="Technician Workspace" showBack={true} fallbackRoute="/staff/dashboard" />
+        <ExecutiveHeader title={t('taskDetail.headerTitle', 'Technician Workspace')} showBack={true} fallbackRoute="/staff/dashboard" />
         <View style={styles.centerContainer}>
-          <ActivityIndicator size="large" color={ExecutiveTheme.colors.brandDark} />
-          <Text style={styles.loadingText}>Loading technician workspace...</Text>
+          <ActivityIndicator size="large" color={ExecutiveTheme.colors.brandPrimary} />
+          <Text style={styles.loadingText}>{t('taskDetail.loadingWorkspace', 'Loading technician workspace...')}</Text>
         </View>
       </SafeAreaView>
     );
@@ -416,9 +419,9 @@ export default function StaffTaskDetailScreen() {
   if (!task) {
     return (
       <SafeAreaView style={styles.screen}>
-        <ExecutiveHeader title="Technician Workspace" showBack={true} fallbackRoute="/staff/dashboard" />
+        <ExecutiveHeader title={t('taskDetail.headerTitle', 'Technician Workspace')} showBack={true} fallbackRoute="/staff/dashboard" />
         <View style={styles.centerContainer}>
-          <Text style={styles.notFoundText}>Task not found.</Text>
+          <Text style={styles.notFoundText}>{t('taskDetail.taskNotFound', 'Task not found.')}</Text>
         </View>
       </SafeAreaView>
     );
@@ -440,7 +443,7 @@ export default function StaffTaskDetailScreen() {
   return (
     <SafeAreaView style={styles.screen}>
       <ExecutiveHeader
-        title="Technician Workspace"
+        title={t('taskDetail.headerTitle', 'Technician Workspace')}
         subtitle={`Order #${(task.id || '').slice(0, 8).toUpperCase()}`}
         showBack={true}
         fallbackRoute="/staff/dashboard"
@@ -453,7 +456,7 @@ export default function StaffTaskDetailScreen() {
             {pdfGenerating ? (
               <ActivityIndicator size="small" color="#FFFFFF" />
             ) : (
-              <Text style={styles.pdfTopBtnText}>📄 PDF Report</Text>
+              <Text style={styles.pdfTopBtnText}>{t('taskDetail.exportPdfBtn', '📄 PDF Report')}</Text>
             )}
           </Pressable>
         }
@@ -481,7 +484,7 @@ export default function StaffTaskDetailScreen() {
 
               {/* Resident Box */}
               <View style={styles.requesterCard}>
-                <Text style={styles.requesterLabel}>RESIDENT / REQUESTER</Text>
+                <Text style={styles.requesterLabel}>{t('taskDetail.residentRequester', 'RESIDENT / REQUESTER')}</Text>
                 <Text style={styles.requesterName}>
                   {task.requester?.full_name || task.requester?.email || 'Resident'}
                 </Text>
@@ -489,14 +492,14 @@ export default function StaffTaskDetailScreen() {
               </View>
 
               {/* 1-Tap Quick Status Switcher Chips */}
-              <Text style={styles.fieldLabel}>UPDATE WORK ORDER STATUS</Text>
+              <Text style={styles.fieldLabel}>{t('taskDetail.updateStatusTitle', 'UPDATE WORK ORDER STATUS')}</Text>
               <View style={styles.statusChipsGrid}>
                 {(
                   [
-                    ['assigned', '⏳ Assigned', '#64748B', '#F1F5F9'],
-                    ['in_progress', '▶️ In Progress', '#B45309', '#FFFBEB'],
-                    ['on_hold', '⏸️ On Hold', '#C2410C', '#FFF7ED'],
-                    ['completed', '✅ Resolved', '#15803D', '#F0FDF4'],
+                    ['assigned', `⏳ ${t('status.assigned', 'Assigned')}`, '#F5C400', '#2B2B2B'],
+                    ['in_progress', `▶️ ${t('status.in_progress', 'In Progress')}`, '#F5C400', '#202020'],
+                    ['on_hold', `⏸️ ${t('status.on_hold', 'On Hold')}`, '#E5E5E5', '#2B2B2B'],
+                    ['completed', `✅ ${t('status.completed', 'Resolved')}`, '#FFFFFF', '#202020'],
                   ] as [RequestStatus, string, string, string][]
                 ).map(([st, label, activeColor, activeBg]) => {
                   const isSelected = task.status === st;
@@ -519,6 +522,7 @@ export default function StaffTaskDetailScreen() {
                           styles.statusQuickChipText,
                           isSelected && { color: activeColor, fontWeight: '800' },
                         ]}
+                        numberOfLines={1}
                       >
                         {label}
                       </Text>
@@ -532,16 +536,21 @@ export default function StaffTaskDetailScreen() {
                 onPress={() => setStatusModalVisible(true)}
                 disabled={submitting}
               >
-                <Text style={styles.addNoteBtnAltText}>📝 Add Custom Status Note</Text>
+                <Text style={styles.addNoteBtnAltText}>{t('taskDetail.addCustomStatusNote', '📝 Add Custom Status Note')}</Text>
               </Pressable>
             </View>
+
+            {/* Equipment Asset Tag (if linked) */}
+            {task.equipment && (
+              <EquipmentTagCard equipment={task.equipment} readOnly={true} />
+            )}
 
             {/* Section 2: AI Smart Task Summary & Triage Card */}
             {aiTriage && (
               <View style={styles.aiTriageCard}>
                 <View style={styles.aiTriageHeader}>
                   <View style={styles.aiTriageBadge}>
-                    <Text style={styles.aiTriageBadgeText}>🤖 AI Task Diagnostic</Text>
+                    <Text style={styles.aiTriageBadgeText}>{t('taskDetail.aiTaskDiagnostic', '🤖 AI Task Diagnostic')}</Text>
                   </View>
                   <Text style={styles.aiCategoryTag}>{aiTriage.category}</Text>
                 </View>
@@ -550,15 +559,15 @@ export default function StaffTaskDetailScreen() {
 
                 <View style={styles.aiMetricsRow}>
                   <View style={styles.aiMetricBox}>
-                    <Text style={styles.aiMetricLabel}>Estimated Labor</Text>
+                    <Text style={styles.aiMetricLabel}>{t('taskDetail.estimatedLabor', 'Estimated Labor')}</Text>
                     <Text style={styles.aiMetricValue}>{aiTriage.estimatedDuration}</Text>
                   </View>
                   <View style={styles.aiMetricBox}>
-                    <Text style={styles.aiMetricLabel}>Cost Benchmark (₹)</Text>
+                    <Text style={styles.aiMetricLabel}>{t('taskDetail.costBenchmark', 'Cost Benchmark (₹)')}</Text>
                     <Text style={styles.aiMetricValue}>{aiTriage.estimatedCostRange}</Text>
                   </View>
                   <View style={styles.aiMetricBox}>
-                    <Text style={styles.aiMetricLabel}>Priority Level</Text>
+                    <Text style={styles.aiMetricLabel}>{t('createRequest.priorityLabel', 'Priority Level')}</Text>
                     <Text style={styles.aiMetricValue}>
                       {aiTriage.recommendedPriority.toUpperCase()}
                     </Text>
@@ -567,7 +576,7 @@ export default function StaffTaskDetailScreen() {
 
                 {aiTriage.safetyAdvice && aiTriage.safetyAdvice.length > 0 && (
                   <View style={styles.aiSafetyBox}>
-                    <Text style={styles.aiSafetyTitle}>⚠️ Safety & Diagnostic Protocol:</Text>
+                    <Text style={styles.aiSafetyTitle}>{t('taskDetail.safetyProtocol', '⚠️ Safety & Diagnostic Protocol:')}</Text>
                     {aiTriage.safetyAdvice.map((advice, idx) => (
                       <Text key={idx} style={styles.aiSafetyItem}>
                         • {advice}
@@ -581,13 +590,13 @@ export default function StaffTaskDetailScreen() {
             {/* Section 3: Time Logging & Labor */}
             <View style={styles.card}>
               <View style={styles.cardHeaderRow}>
-                <Text style={styles.sectionHeader}>LABOR DURATION & WORK LOGS</Text>
+                <Text style={styles.sectionHeader}>{t('taskDetail.laborLogsTitle', 'LABOR DURATION & WORK LOGS')}</Text>
                 <Pressable
                   style={({ pressed }) => [styles.actionSmallBtn, pressed && styles.pressed]}
                   onPress={() => setTimeModalVisible(true)}
                   disabled={submitting}
                 >
-                  <Text style={styles.actionSmallBtnText}>＋ Log Time</Text>
+                  <Text style={styles.actionSmallBtnText}>{t('taskDetail.logTimeBtn', '＋ Log Time')}</Text>
                 </Pressable>
               </View>
 
@@ -1094,9 +1103,9 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: ExecutiveTheme.colors.border,
     elevation: 2,
-    shadowColor: '#1E293B',
+    shadowColor: '#000000',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.04,
+    shadowOpacity: 0.2,
     shadowRadius: 6,
   },
   aiTriageHeader: {
@@ -1106,20 +1115,22 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   aiTriageBadge: {
-    backgroundColor: ExecutiveTheme.colors.brandDark,
+    backgroundColor: '#202020',
     paddingHorizontal: 8,
     paddingVertical: 3,
     borderRadius: 6,
+    borderWidth: 1,
+    borderColor: '#F5C400',
   },
   aiTriageBadgeText: {
-    color: '#FFFFFF',
+    color: '#F5C400',
     fontSize: 11,
     fontWeight: '800',
   },
   aiCategoryTag: {
     fontSize: 12.5,
     fontWeight: '800',
-    color: ExecutiveTheme.colors.brandDark,
+    color: '#F5C400',
   },
   aiExplanationText: {
     fontSize: 13,
@@ -1164,7 +1175,7 @@ const styles = StyleSheet.create({
   aiSafetyTitle: {
     fontSize: 11,
     fontWeight: '800',
-    color: '#C2410C',
+    color: '#F5C400',
     marginBottom: 2,
   },
   aiSafetyItem: {
@@ -1186,15 +1197,15 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   actionSmallBtn: {
-    backgroundColor: ExecutiveTheme.colors.brandDark,
+    backgroundColor: ExecutiveTheme.colors.brandPrimary,
     paddingHorizontal: 10,
     paddingVertical: 5,
     borderRadius: 8,
   },
   actionSmallBtnText: {
-    color: '#FFFFFF',
+    color: '#111111',
     fontSize: 11.5,
-    fontWeight: '700',
+    fontWeight: '800',
   },
   timeSummaryCard: {
     backgroundColor: ExecutiveTheme.colors.backgroundSubtle,
@@ -1208,7 +1219,7 @@ const styles = StyleSheet.create({
   timeSummaryNum: {
     fontSize: 20,
     fontWeight: '800',
-    color: ExecutiveTheme.colors.brandDark,
+    color: '#F5C400',
   },
   timeSummaryLabel: {
     fontSize: 11,
@@ -1233,7 +1244,7 @@ const styles = StyleSheet.create({
   timeLogMins: {
     fontSize: 12.5,
     fontWeight: '800',
-    color: ExecutiveTheme.colors.brandDark,
+    color: '#F5C400',
   },
   timeLogDate: {
     fontSize: 11,
@@ -1291,8 +1302,8 @@ const styles = StyleSheet.create({
     borderColor: ExecutiveTheme.colors.border,
   },
   warrantyChipSelected: {
-    backgroundColor: ExecutiveTheme.colors.brandDark,
-    borderColor: ExecutiveTheme.colors.brandDark,
+    backgroundColor: '#2B2B2B',
+    borderColor: '#F5C400',
   },
   warrantyChipText: {
     fontSize: 11,
@@ -1300,7 +1311,7 @@ const styles = StyleSheet.create({
     color: ExecutiveTheme.colors.textSecondary,
   },
   warrantyChipTextSelected: {
-    color: '#FFFFFF',
+    color: '#F5C400',
   },
   summaryHeaderRow: {
     flexDirection: 'row',
@@ -1319,31 +1330,31 @@ const styles = StyleSheet.create({
   aiSmallBtnText: {
     fontSize: 11.5,
     fontWeight: '700',
-    color: ExecutiveTheme.colors.brandDark,
+    color: '#F5C400',
   },
   aiNoticeCard: {
-    backgroundColor: '#F0FDF4',
+    backgroundColor: '#202020',
     borderRadius: 8,
     paddingHorizontal: 10,
     paddingVertical: 6,
     marginTop: 6,
     borderWidth: 0.8,
-    borderColor: '#BBF7D0',
+    borderColor: '#F5C400',
   },
   aiNoticeText: {
     fontSize: 11.5,
     fontWeight: '700',
-    color: '#15803D',
+    color: '#F5C400',
   },
   saveDetailsBtn: {
-    backgroundColor: ExecutiveTheme.colors.brandDark,
+    backgroundColor: ExecutiveTheme.colors.brandPrimary,
     borderRadius: 12,
     paddingVertical: 12,
     alignItems: 'center',
     marginTop: 10,
   },
   saveDetailsBtnText: {
-    color: '#FFFFFF',
+    color: '#111111',
     fontSize: 14,
     fontWeight: '800',
   },
@@ -1384,31 +1395,31 @@ const styles = StyleSheet.create({
     borderColor: ExecutiveTheme.colors.border,
   },
   addNoteBtn: {
-    backgroundColor: ExecutiveTheme.colors.brandDark,
+    backgroundColor: ExecutiveTheme.colors.brandPrimary,
     borderRadius: 10,
     paddingVertical: 10,
     alignItems: 'center',
     marginTop: 8,
   },
   addNoteBtnText: {
-    color: '#FFFFFF',
+    color: '#111111',
     fontSize: 13,
     fontWeight: '800',
   },
   pdfTopBtn: {
-    backgroundColor: ExecutiveTheme.colors.brandDark,
+    backgroundColor: ExecutiveTheme.colors.brandPrimary,
     paddingHorizontal: 10,
     paddingVertical: 5,
     borderRadius: 8,
   },
   pdfTopBtnText: {
     fontSize: 11.5,
-    fontWeight: '700',
-    color: '#FFFFFF',
+    fontWeight: '800',
+    color: '#111111',
   },
   modalBackdrop: {
     flex: 1,
-    backgroundColor: 'rgba(30, 27, 75, 0.45)',
+    backgroundColor: 'rgba(0, 0, 0, 0.75)',
     justifyContent: 'flex-end',
   },
   modalCard: {
@@ -1449,8 +1460,8 @@ const styles = StyleSheet.create({
     borderColor: ExecutiveTheme.colors.border,
   },
   statusOptionSelected: {
-    backgroundColor: ExecutiveTheme.colors.brandDark,
-    borderColor: ExecutiveTheme.colors.brandDark,
+    backgroundColor: '#2B2B2B',
+    borderColor: '#F5C400',
   },
   statusOptionText: {
     fontSize: 12,
@@ -1458,7 +1469,8 @@ const styles = StyleSheet.create({
     color: ExecutiveTheme.colors.textSecondary,
   },
   statusOptionTextSelected: {
-    color: '#FFFFFF',
+    color: '#F5C400',
+    fontWeight: '800',
   },
   modalActions: {
     flexDirection: 'row',
@@ -1482,12 +1494,12 @@ const styles = StyleSheet.create({
     color: ExecutiveTheme.colors.textSecondary,
   },
   modalSaveBtn: {
-    backgroundColor: ExecutiveTheme.colors.brandDark,
+    backgroundColor: ExecutiveTheme.colors.brandPrimary,
   },
   modalSaveText: {
     fontSize: 13.5,
     fontWeight: '800',
-    color: '#FFFFFF',
+    color: '#111111',
   },
   fullscreenModal: {
     flex: 1,
@@ -1531,7 +1543,7 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   btnDisabled: {
-    backgroundColor: '#94A3B8',
+    backgroundColor: '#4A4A4A',
   },
   pressed: {
     opacity: 0.75,

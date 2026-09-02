@@ -56,10 +56,27 @@ export interface TimeLog {
   staff?: Profile;
 }
 
+export interface Equipment {
+  id: string;
+  product_id: string; // e.g. 'FAN-204-01', 'AC-101-02', 'LIGHT-305-01', 'PLUMB-102-04'
+  name: string;       // e.g. 'Ceiling Fan', 'Air Conditioner', 'LED Ceiling Light'
+  category: string;   // e.g. 'Electrical', 'HVAC', 'Plumbing', 'General'
+  location: string;   // e.g. 'Room 204', 'Living Room 101', 'Bedroom 305'
+  model: string | null; // e.g. 'XYZ-500', 'DAIKIN-FTKM50', 'PHILIPS-18W'
+  serial_number?: string | null;
+  installation_date?: string | null;
+  warranty_status?: WarrantyStatus | null;
+  status?: 'active' | 'in_maintenance' | 'decommissioned';
+  created_at?: string;
+  updated_at?: string;
+}
+
 export interface MaintenanceRequest {
   id: string;
   requester_id: string;
   assigned_to: string | null;
+  equipment_id?: string | null;
+  product_id?: string | null;
   title: string;
   description: string;
   priority: Priority;
@@ -75,6 +92,7 @@ export interface MaintenanceRequest {
   completed_at: string | null;
   requester?: Profile;
   assignee?: Profile;
+  equipment?: Equipment | null;
   photos?: RequestPhoto[];
   timeline_logs?: TimelineLog[];
   time_logs?: TimeLog[];

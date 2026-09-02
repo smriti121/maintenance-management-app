@@ -13,7 +13,9 @@ import {
 
 import { AppBottomNav } from '@/components/app-bottom-nav';
 import { ExecutiveHeader } from '@/components/executive-header';
+import { LanguageSelector } from '@/components/language-selector';
 import { ExecutiveTheme } from '@/constants/theme';
+import { useLanguage } from '@/context/language-context';
 import { supabase } from '@/lib/supabase';
 import { MaintenanceService } from '@/services/maintenance-service';
 import { Profile } from '@/types/maintenance';
@@ -24,6 +26,7 @@ export default function StaffProfileScreen() {
   const [taskCount, setTaskCount] = useState(0);
   const [resolvedCount, setResolvedCount] = useState(0);
   const [loading, setLoading] = useState(true);
+  const { t } = useLanguage();
 
   const loadProfile = useCallback(async () => {
     try {
@@ -64,9 +67,9 @@ export default function StaffProfileScreen() {
 
   async function handleSignOut() {
     confirmAction({
-      title: 'Sign Out',
-      message: 'Are you sure you want to sign out of your technician account?',
-      confirmText: 'Sign Out',
+      title: t('profile.signOutConfirmTitle', 'Sign Out'),
+      message: t('profile.signOutConfirmMessage', 'Are you sure you want to sign out of FixFlow?'),
+      confirmText: t('common.signOut', 'Sign Out'),
       destructive: true,
       onConfirm: async () => {
         try {
@@ -91,8 +94,8 @@ export default function StaffProfileScreen() {
   return (
     <SafeAreaView style={styles.screen}>
       <ExecutiveHeader
-        title="Technician Profile"
-        subtitle="Staff Credentials & Engineering Account"
+        title={t('profile.technicianHeaderTitle', 'Technician Profile')}
+        subtitle={t('profile.technicianSubtitle', 'Staff Credentials & Engineering Account')}
         showBack={false}
       />
 
@@ -100,82 +103,119 @@ export default function StaffProfileScreen() {
         <View style={styles.container}>
           {loading ? (
             <View style={styles.centerContainer}>
-              <ActivityIndicator size="large" color={ExecutiveTheme.colors.brandDark} />
+              <ActivityIndicator size="large" color="#F5C400" />
             </View>
           ) : (
             <>
               {/* Profile Header Card */}
               <View style={styles.profileHeaderCard}>
-                <View style={styles.avatarCircle}>
-                  <Text style={styles.avatarText}>{initials}</Text>
+                <View style={styles.avatarContainer}>
+                  <View style={styles.avatarCircle}>
+                    <Text style={styles.avatarText}>{initials}</Text>
+                  </View>
+                  <View style={styles.avatarBadge}>
+                    <Ionicons name="construct" size={12} color="#111111" />
+                  </View>
                 </View>
-                <Text style={styles.userName}>{profile?.full_name || 'Staff Technician'}</Text>
+
+                <Text style={styles.userName}>
+                  {profile?.full_name || t('staffDashboard.greetingFallback', 'Staff Technician')}
+                </Text>
                 <Text style={styles.userEmail}>{profile?.email || 'N/A'}</Text>
 
                 <View style={styles.roleChip}>
-                  <Text style={styles.roleChipText}>CERTIFIED MAINTENANCE TECHNICIAN</Text>
+                  <Ionicons name="shield-checkmark" size={13} color="#F5C400" />
+                  <Text style={styles.roleChipText}>
+                    {t('profile.roleStaff', 'Certified Maintenance Staff').toUpperCase()}
+                  </Text>
                 </View>
               </View>
 
+              {/* Language Selection Card */}
+              <LanguageSelector />
+
               {/* Workload & Service Performance */}
               <View style={styles.card}>
-                <Text style={styles.sectionHeader}>SERVICE RECORD & WORKLOAD</Text>
+                <View style={styles.sectionHeaderRow}>
+                  <View style={styles.sectionHeaderAccent} />
+                  <Text style={styles.sectionHeader}>{t('profile.serviceRecordTitle', 'SERVICE RECORD & WORKLOAD')}</Text>
+                </View>
 
                 <View style={styles.statsRow}>
                   <View style={styles.statBox}>
+                    <View style={styles.statIconWrap}>
+                      <Ionicons name="briefcase-outline" size={15} color="#F5C400" />
+                    </View>
                     <Text style={styles.statNumber}>{taskCount}</Text>
-                    <Text style={styles.statLabel}>Assigned Orders</Text>
+                    <Text style={styles.statLabel}>{t('staffDashboard.assignedTasks', 'Assigned')}</Text>
                   </View>
-                  <View style={styles.statBox}>
-                    <Text style={[styles.statNumber, { color: '#15803D' }]}>{resolvedCount}</Text>
-                    <Text style={styles.statLabel}>Resolved Jobs</Text>
+
+                  <View style={[styles.statBox, styles.statBoxHighlight]}>
+                    <View style={[styles.statIconWrap, { backgroundColor: '#2B2B2B', borderColor: '#F5C400' }]}>
+                      <Ionicons name="checkmark-done-circle-outline" size={15} color="#F5C400" />
+                    </View>
+                    <Text style={[styles.statNumber, { color: '#F5C400' }]}>{resolvedCount}</Text>
+                    <Text style={[styles.statLabel, { color: '#F5C400' }]}>{t('staffDashboard.resolvedTasks', 'Resolved')}</Text>
                   </View>
+
                   <View style={styles.statBox}>
-                    <Text style={[styles.statNumber, { color: '#B45309' }]}>
-                      {taskCount - resolvedCount}
-                    </Text>
-                    <Text style={styles.statLabel}>Active Workload</Text>
+                    <View style={styles.statIconWrap}>
+                      <Ionicons name="flash-outline" size={15} color="#F5C400" />
+                    </View>
+                    <Text style={styles.statNumber}>{taskCount - resolvedCount}</Text>
+                    <Text style={styles.statLabel}>{t('staffReports.activeWorkload', 'Active')}</Text>
                   </View>
                 </View>
               </View>
 
               {/* Account & Security Information */}
               <View style={styles.card}>
-                <Text style={styles.sectionHeader}>CREDENTIALS & DISPATCH</Text>
+                <View style={styles.sectionHeaderRow}>
+                  <View style={styles.sectionHeaderAccent} />
+                  <Text style={styles.sectionHeader}>{t('profile.credentialsTitle', 'CREDENTIALS & DISPATCH')}</Text>
+                </View>
 
                 <View style={styles.infoRow}>
-                  <Text style={styles.infoLabel}>Full Name</Text>
+                  <Text style={styles.infoLabel}>{t('auth.fullName', 'Full Name')}</Text>
                   <Text style={styles.infoValue}>{profile?.full_name || 'N/A'}</Text>
                 </View>
 
                 <View style={styles.infoRow}>
-                  <Text style={styles.infoLabel}>Staff Email</Text>
+                  <Text style={styles.infoLabel}>{t('profile.staffEmailLabel', 'Staff Email')}</Text>
                   <Text style={styles.infoValue}>{profile?.email || 'N/A'}</Text>
                 </View>
 
                 <View style={styles.infoRow}>
-                  <Text style={styles.infoLabel}>System Role</Text>
-                  <Text style={styles.infoValue}>Maintenance Engineering Staff</Text>
+                  <Text style={styles.infoLabel}>{t('profile.systemRoleLabel', 'System Role')}</Text>
+                  <Text style={styles.infoValue}>{t('profile.roleStaff', 'Certified Maintenance Staff')}</Text>
                 </View>
 
                 <View style={[styles.infoRow, { borderBottomWidth: 0 }]}>
-                  <Text style={styles.infoLabel}>Facility Desk Hotline</Text>
-                  <Text style={styles.infoValue}>1800-349-3569</Text>
+                  <Text style={styles.infoLabel}>{t('profile.facilityDeskHotline', 'Facility Desk Hotline')}</Text>
+                  <View style={styles.hotlineWrap}>
+                    <Ionicons name="call" size={13} color="#F5C400" />
+                    <Text style={styles.hotlineText}>1800-349-3569</Text>
+                  </View>
                 </View>
               </View>
 
               {/* App Info */}
               <View style={styles.card}>
-                <Text style={styles.sectionHeader}>SYSTEM INFORMATION</Text>
+                <View style={styles.sectionHeaderRow}>
+                  <View style={styles.sectionHeaderAccent} />
+                  <Text style={styles.sectionHeader}>{t('profile.appInfoTitle', 'APPLICATION INFO')}</Text>
+                </View>
 
                 <View style={styles.infoRow}>
-                  <Text style={styles.infoLabel}>Application</Text>
+                  <Text style={styles.infoLabel}>{t('profile.applicationLabel', 'Application')}</Text>
                   <Text style={styles.infoValue}>FixFlow</Text>
                 </View>
 
                 <View style={[styles.infoRow, { borderBottomWidth: 0 }]}>
-                  <Text style={styles.infoLabel}>Version & Build</Text>
-                  <Text style={styles.infoValue}>v1.0.0 (Build 54)</Text>
+                  <Text style={styles.infoLabel}>{t('profile.appVersion', 'Version')}</Text>
+                  <View style={styles.versionBadge}>
+                    <Text style={styles.versionBadgeText}>{t('profile.productionBadge', 'v1.0.0 (Production)')}</Text>
+                  </View>
                 </View>
               </View>
 
@@ -184,15 +224,15 @@ export default function StaffProfileScreen() {
                 style={({ pressed }) => [styles.signOutBtn, pressed && styles.pressed]}
                 onPress={handleSignOut}
               >
-                <Ionicons name="log-out-outline" size={16} color="#DC2626" />
-                <Text style={styles.signOutBtnText}>Sign Out of Staff Account</Text>
+                <Ionicons name="log-out-outline" size={16} color="#E5E5E5" />
+                <Text style={styles.signOutBtnText}>{t('profile.signOutBtn', 'Sign Out of Account')}</Text>
               </Pressable>
             </>
           )}
         </View>
       </ScrollView>
 
-      <AppBottomNav activeTab="profile" role="maintenance_staff" />
+      <AppBottomNav activeTab="profile" isStaff={true} />
     </SafeAreaView>
   );
 }
@@ -200,7 +240,7 @@ export default function StaffProfileScreen() {
 const styles = StyleSheet.create({
   screen: {
     flex: 1,
-    backgroundColor: ExecutiveTheme.colors.background,
+    backgroundColor: '#111111',
   },
   scrollContent: {
     paddingHorizontal: 16,
@@ -214,82 +254,115 @@ const styles = StyleSheet.create({
     gap: 14,
   },
   profileHeaderCard: {
-    backgroundColor: ExecutiveTheme.colors.surface,
-    borderRadius: 16,
-    padding: 20,
+    backgroundColor: '#202020',
+    borderRadius: 18,
+    padding: 24,
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: ExecutiveTheme.colors.border,
-    elevation: 2,
-    shadowColor: '#1E293B',
+    borderColor: '#2B2B2B',
+    elevation: 3,
+    shadowColor: '#000000',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.04,
+    shadowOpacity: 0.3,
     shadowRadius: 6,
   },
+  avatarContainer: {
+    position: 'relative',
+    marginBottom: 12,
+  },
   avatarCircle: {
-    width: 64,
-    height: 64,
-    borderRadius: 20,
-    backgroundColor: ExecutiveTheme.colors.brandPrimary,
+    width: 74,
+    height: 74,
+    borderRadius: 22,
+    backgroundColor: '#262626',
+    borderWidth: 2.5,
+    borderColor: '#F5C400',
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 10,
-    elevation: 3,
-    shadowColor: '#4F46E5',
+    elevation: 4,
+    shadowColor: '#000000',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 4,
+    shadowOpacity: 0.3,
+    shadowRadius: 5,
+  },
+  avatarBadge: {
+    position: 'absolute',
+    bottom: -4,
+    right: -4,
+    width: 24,
+    height: 24,
+    borderRadius: 8,
+    backgroundColor: '#F5C400',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 2,
+    borderColor: '#202020',
   },
   avatarText: {
-    fontSize: 22,
-    fontWeight: '800',
-    color: '#FFFFFF',
-    letterSpacing: 1,
+    fontSize: 26,
+    fontWeight: '900',
+    color: '#F5C400',
+    letterSpacing: 1.5,
   },
   userName: {
-    fontSize: 18,
-    fontWeight: '800',
-    color: ExecutiveTheme.colors.textPrimary,
+    fontSize: 19,
+    fontWeight: '900',
+    color: '#FFFFFF',
     letterSpacing: -0.3,
   },
   userEmail: {
     fontSize: 13,
-    color: ExecutiveTheme.colors.textSecondary,
-    marginTop: 2,
+    color: '#888888',
+    marginTop: 3,
+    fontWeight: '500',
   },
   roleChip: {
-    backgroundColor: ExecutiveTheme.colors.backgroundSubtle,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: '#262626',
     borderRadius: 20,
-    paddingHorizontal: 12,
-    paddingVertical: 4,
-    marginTop: 10,
+    paddingHorizontal: 13,
+    paddingVertical: 5,
+    marginTop: 12,
     borderWidth: 1,
-    borderColor: ExecutiveTheme.colors.border,
+    borderColor: '#F5C400',
   },
   roleChipText: {
     fontSize: 10.5,
     fontWeight: '800',
-    color: ExecutiveTheme.colors.brandPrimary,
+    color: '#F5C400',
     letterSpacing: 0.4,
   },
   card: {
-    backgroundColor: ExecutiveTheme.colors.surface,
+    backgroundColor: '#202020',
     borderRadius: 16,
     padding: 16,
     borderWidth: 1,
-    borderColor: ExecutiveTheme.colors.border,
+    borderColor: '#2B2B2B',
     elevation: 2,
-    shadowColor: '#1E293B',
+    shadowColor: '#000000',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.04,
+    shadowOpacity: 0.2,
     shadowRadius: 6,
+  },
+  sectionHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 7,
+    marginBottom: 12,
+  },
+  sectionHeaderAccent: {
+    width: 3,
+    height: 12,
+    backgroundColor: '#F5C400',
+    borderRadius: 2,
   },
   sectionHeader: {
     fontSize: 11,
     fontWeight: '800',
-    color: ExecutiveTheme.colors.textSecondary,
-    letterSpacing: 0.5,
-    marginBottom: 12,
+    color: '#E5E5E5',
+    letterSpacing: 0.6,
   },
   statsRow: {
     flexDirection: 'row',
@@ -297,57 +370,105 @@ const styles = StyleSheet.create({
   },
   statBox: {
     flex: 1,
-    backgroundColor: ExecutiveTheme.colors.backgroundSubtle,
-    borderRadius: 10,
-    paddingVertical: 12,
+    backgroundColor: '#262626',
+    borderRadius: 12,
+    paddingVertical: 13,
+    paddingHorizontal: 6,
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: ExecutiveTheme.colors.border,
+    borderColor: '#333333',
+  },
+  statBoxHighlight: {
+    borderColor: '#F5C400',
+    backgroundColor: '#2B2B2B',
+  },
+  statIconWrap: {
+    width: 26,
+    height: 26,
+    borderRadius: 6,
+    backgroundColor: '#1E1E1E',
+    borderWidth: 1,
+    borderColor: '#333333',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 4,
   },
   statNumber: {
     fontSize: 20,
-    fontWeight: '800',
-    color: ExecutiveTheme.colors.textPrimary,
+    fontWeight: '900',
+    color: '#FFFFFF',
   },
   statLabel: {
     fontSize: 10,
-    fontWeight: '700',
-    color: ExecutiveTheme.colors.textSecondary,
+    fontWeight: '800',
+    color: '#888888',
     marginTop: 2,
     textAlign: 'center',
+    textTransform: 'uppercase',
+    letterSpacing: 0.3,
   },
   infoRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    paddingVertical: 10,
+    alignItems: 'center',
+    paddingVertical: 11,
     borderBottomWidth: 0.8,
-    borderBottomColor: ExecutiveTheme.colors.borderSubtle,
+    borderBottomColor: '#2B2B2B',
   },
   infoLabel: {
     fontSize: 13,
-    color: ExecutiveTheme.colors.textSecondary,
+    color: '#888888',
     fontWeight: '500',
   },
   infoValue: {
     fontSize: 13,
-    color: ExecutiveTheme.colors.textPrimary,
+    color: '#FFFFFF',
     fontWeight: '700',
+  },
+  hotlineWrap: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    backgroundColor: '#1E1E1E',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 6,
+    borderWidth: 0.8,
+    borderColor: '#333333',
+  },
+  hotlineText: {
+    fontSize: 12.5,
+    fontWeight: '700',
+    color: '#F5C400',
+  },
+  versionBadge: {
+    backgroundColor: '#262626',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 6,
+    borderWidth: 0.8,
+    borderColor: '#333333',
+  },
+  versionBadgeText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#E5E5E5',
   },
   signOutBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 8,
-    backgroundColor: '#FFF1F2',
+    backgroundColor: '#202020',
     borderWidth: 1,
-    borderColor: '#FECDD3',
-    borderRadius: 12,
+    borderColor: '#333333',
+    borderRadius: 14,
     paddingVertical: 13,
     marginTop: 4,
   },
   signOutBtnText: {
-    color: '#E11D48',
-    fontSize: 14,
+    color: '#E5E5E5',
+    fontSize: 13.5,
     fontWeight: '800',
   },
   centerContainer: {
@@ -356,6 +477,6 @@ const styles = StyleSheet.create({
     paddingVertical: 60,
   },
   pressed: {
-    opacity: 0.75,
+    opacity: 0.78,
   },
 });

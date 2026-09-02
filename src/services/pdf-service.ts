@@ -48,16 +48,16 @@ export class PdfService {
     const priorityUpper = (request.priority || 'medium').toUpperCase();
 
     const isCompleted = request.status === 'completed';
-    const statusColor = isCompleted ? '#16A34A' : request.status === 'in_progress' ? '#2563EB' : '#D97706';
-    const statusBg = isCompleted ? '#DCFCE7' : request.status === 'in_progress' ? '#DBEAFE' : '#FEF3C7';
+    const statusColor = isCompleted ? '#111111' : request.status === 'in_progress' ? '#111111' : '#4A4A4A';
+    const statusBg = isCompleted ? '#F5C400' : request.status === 'in_progress' ? '#F5C400' : '#E5E5E5';
 
-    const priorityColor = request.priority === 'urgent' ? '#DC2626' : request.priority === 'high' ? '#D97706' : '#16A34A';
-    const priorityBg = request.priority === 'urgent' ? '#FEE2E2' : request.priority === 'high' ? '#FEF3C7' : '#DCFCE7';
+    const priorityColor = request.priority === 'urgent' ? '#111111' : request.priority === 'high' ? '#111111' : '#4A4A4A';
+    const priorityBg = request.priority === 'urgent' ? '#F5C400' : request.priority === 'high' ? '#E5E5E5' : '#F5F5F5';
 
     const timeLogRows = (request.time_logs || []).map(
       (log) => `
         <tr>
-          <td style="width: 100px; font-weight: 700; color: #2563EB;">${log.duration_minutes} mins</td>
+          <td style="width: 100px; font-weight: 700; color: #111111;">${log.duration_minutes} mins</td>
           <td style="color: #334155;">${escapeHtml(log.description || 'Labor / maintenance servicing')}</td>
           <td style="width: 120px; color: #64748B; text-align: right;">${log.created_at ? new Date(log.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : 'N/A'}</td>
         </tr>
@@ -67,7 +67,7 @@ export class PdfService {
     const timelineRows = (request.timeline_logs || []).map(
       (log) => `
         <tr>
-          <td style="width: 140px; font-weight: 700; color: #2E2A4F; text-transform: uppercase; font-size: 11px;">
+          <td style="width: 140px; font-weight: 700; color: #111111; text-transform: uppercase; font-size: 11px;">
             ${escapeHtml((log.action || 'ACTIVITY').replace(/_/g, ' '))}
           </td>
           <td style="color: #334155; font-size: 11.5px;">
@@ -102,7 +102,7 @@ export class PdfService {
             }
             body {
               font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
-              color: #2E2A4F;
+              color: #111111;
               background-color: #FFFFFF;
               font-size: 12px;
               line-height: 1.5;
@@ -127,14 +127,14 @@ export class PdfService {
               display: flex;
               justify-content: space-between;
               align-items: center;
-              border-bottom: 2px solid #7C3AED;
+              border-bottom: 2px solid #F5C400;
               padding-bottom: 14px;
               margin-bottom: 16px;
             }
             .company-name {
               font-size: 20px;
               font-weight: 800;
-              color: #7C3AED;
+              color: #111111;
               letter-spacing: -0.5px;
             }
             .doc-subtitle {
@@ -151,7 +151,7 @@ export class PdfService {
             .ref-tag {
               font-size: 14px;
               font-weight: 800;
-              color: #2563EB;
+              color: #111111;
               letter-spacing: 0.5px;
             }
             .gen-date {
@@ -286,8 +286,8 @@ export class PdfService {
 
             /* Technician Sign-Off Box */
             .signoff-box {
-              background: #F0FDF4;
-              border: 1px solid #BBF7D0;
+              background: #F8FAFC;
+              border: 1px solid #E2E8F0;
               border-radius: 8px;
               padding: 12px 14px;
               margin-bottom: 14px;
@@ -295,7 +295,7 @@ export class PdfService {
             .signoff-title {
               font-size: 11px;
               font-weight: 800;
-              color: #166534;
+              color: #1E293B;
               text-transform: uppercase;
               letter-spacing: 0.5px;
               margin-bottom: 4px;
@@ -422,11 +422,11 @@ export class PdfService {
               </div>
               <div class="kpi-card">
                 <div class="kpi-label">Labor Duration</div>
-                <div class="kpi-value" style="color: #2563EB;">${totalTimeMinutes} mins</div>
+                <div class="kpi-value" style="color: #111111;">${totalTimeMinutes} mins</div>
               </div>
               <div class="kpi-card">
                 <div class="kpi-label">Total Actual Cost</div>
-                <div class="kpi-value" style="color: #16A34A;">₹${request.actual_cost != null ? Number(request.actual_cost).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '0.00'}</div>
+                <div class="kpi-value" style="color: #111111;">₹${request.actual_cost != null ? Number(request.actual_cost).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '0.00'}</div>
               </div>
             </div>
 
@@ -435,7 +435,7 @@ export class PdfService {
               <div class="panel">
                 <div class="panel-header">
                   <span>Resident / Requester</span>
-                  <span style="color: #2563EB;">ORIGINATOR</span>
+                  <span style="color: #111111; font-weight: 800;">ORIGINATOR</span>
                 </div>
                 <div class="info-line"><strong>Name:</strong> ${escapeHtml(request.requester?.full_name || request.requester?.email || 'Resident')}</div>
                 <div class="info-line"><strong>Contact:</strong> ${escapeHtml(request.requester?.email || 'N/A')}</div>
@@ -444,7 +444,7 @@ export class PdfService {
               <div class="panel">
                 <div class="panel-header">
                   <span>Assigned Staff</span>
-                  <span style="color: #16A34A;">CERTIFIED TECHNICIAN</span>
+                  <span style="color: #111111; font-weight: 800;">CERTIFIED TECHNICIAN</span>
                 </div>
                 <div class="info-line"><strong>Technician:</strong> ${escapeHtml(request.assignee?.full_name || request.assignee?.email || 'Assigned Technician')}</div>
                 <div class="info-line"><strong>Email:</strong> ${escapeHtml(request.assignee?.email || 'N/A')}</div>
@@ -474,7 +474,7 @@ export class PdfService {
                 <tbody>
                   <tr>
                     <td>₹${request.estimated_cost != null ? Number(request.estimated_cost).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '0.00'}</td>
-                    <td><strong style="color: #16A34A;">₹${request.actual_cost != null ? Number(request.actual_cost).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '0.00'}</strong></td>
+                    <td><strong style="color: #111111;">₹${request.actual_cost != null ? Number(request.actual_cost).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '0.00'}</strong></td>
                     <td>${(request.warranty_status || 'Under Warranty').replace(/_/g, ' ').toUpperCase()}</td>
                     <td>${escapeHtml(request.purchase_date || 'Standard Coverage')}</td>
                   </tr>
@@ -562,7 +562,7 @@ export class PdfService {
                       (p, idx) => `
                     <div class="photo-frame">
                       <img src="${p.url}" alt="Completion Photo" onerror="this.style.display='none'" />
-                      <div class="photo-caption-bar" style="color: #16A34A;">VERIFIED RESOLUTION #${idx + 1}</div>
+                      <div class="photo-caption-bar" style="color: #2563EB;">VERIFIED RESOLUTION #${idx + 1}</div>
                     </div>
                   `
                     )

@@ -13,6 +13,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { ExecutiveTheme } from '@/constants/theme';
+import { useLanguage } from '@/context/language-context';
 
 interface ExecutiveHeaderProps {
   title: string;
@@ -32,10 +33,8 @@ export function ExecutiveHeader({
   rightElement,
 }: ExecutiveHeaderProps) {
   const insets = useSafeAreaInsets();
-  const topPadding = Math.max(
-    insets.top,
-    Platform.OS === 'android' ? (StatusBar.currentHeight || 28) : 10
-  );
+  const { t } = useLanguage();
+  const topPadding = Platform.OS === 'web' ? 10 : Math.max(insets.top, Platform.OS === 'android' ? (StatusBar.currentHeight || 24) : 10) + 4;
 
   function handleBack() {
     if (onBack) {
@@ -62,7 +61,7 @@ export function ExecutiveHeader({
   }, [showBack]);
 
   return (
-    <View style={[styles.headerContainer, { paddingTop: topPadding + 6 }]}>
+    <View style={[styles.headerContainer, { paddingTop: topPadding }]}>
       <View style={styles.innerRow}>
         {showBack ? (
           <Pressable
@@ -75,26 +74,38 @@ export function ExecutiveHeader({
             <View style={styles.backIconCircle}>
               <Ionicons name="chevron-back" size={16} color={ExecutiveTheme.colors.brandPrimary} />
             </View>
-            <Text style={styles.backLabel}>Back</Text>
+            <Text style={styles.backLabel}>{t('common.back', 'Back')}</Text>
           </Pressable>
-        ) : (
+        ) : rightElement ? (
           <View style={styles.backPlaceholder} />
-        )}
+        ) : null}
 
         <View style={styles.titleContainer}>
-          <Text style={styles.headerTitle} numberOfLines={1}>
+          <Text
+            style={styles.headerTitle}
+            numberOfLines={1}
+            adjustsFontSizeToFit
+            minimumFontScale={0.82}
+          >
             {title}
           </Text>
           {subtitle && (
-            <Text style={styles.headerSubtitle} numberOfLines={1}>
+            <Text
+              style={styles.headerSubtitle}
+              numberOfLines={1}
+              adjustsFontSizeToFit
+              minimumFontScale={0.82}
+            >
               {subtitle}
             </Text>
           )}
         </View>
 
-        <View style={styles.rightSlot}>
-          {rightElement || <View style={styles.rightPlaceholder} />}
-        </View>
+        {rightElement ? (
+          <View style={styles.rightSlot}>{rightElement}</View>
+        ) : showBack ? (
+          <View style={styles.rightPlaceholder} />
+        ) : null}
       </View>
     </View>
   );
@@ -104,8 +115,7 @@ const styles = StyleSheet.create({
   headerContainer: {
     backgroundColor: ExecutiveTheme.colors.surface,
     borderBottomWidth: 1,
-    borderBottomColor: ExecutiveTheme.colors.border,
-    paddingTop: Platform.OS === 'ios' ? 8 : 8,
+    borderBottomColor: ExecutiveTheme.colors.borderSubtle,
     paddingBottom: 8,
     paddingHorizontal: 16,
     zIndex: 10,
@@ -123,7 +133,7 @@ const styles = StyleSheet.create({
   backBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    width: 76,
+    minWidth: 44,
     minHeight: 44,
     gap: 4,
   },
@@ -131,26 +141,29 @@ const styles = StyleSheet.create({
     width: 28,
     height: 28,
     borderRadius: 14,
-    backgroundColor: ExecutiveTheme.colors.brandLight,
+    backgroundColor: ExecutiveTheme.colors.surfaceElevated,
     alignItems: 'center',
     justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: ExecutiveTheme.colors.border,
   },
   backLabel: {
-    fontSize: 13.5,
+    fontSize: 13,
     fontWeight: '700',
     color: ExecutiveTheme.colors.brandPrimary,
   },
   backPlaceholder: {
-    width: 76,
+    minWidth: 44,
   },
   titleContainer: {
     flex: 1,
+    minWidth: 0,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingHorizontal: 4,
+    paddingHorizontal: 6,
   },
   headerTitle: {
-    fontSize: 15.5,
+    fontSize: 14.5,
     fontWeight: '800',
     color: ExecutiveTheme.colors.textPrimary,
     letterSpacing: -0.2,
@@ -163,12 +176,12 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   rightSlot: {
-    width: 76,
+    minWidth: 44,
     alignItems: 'flex-end',
     justifyContent: 'center',
   },
   rightPlaceholder: {
-    width: 76,
+    minWidth: 44,
   },
   pressed: {
     opacity: 0.7,
